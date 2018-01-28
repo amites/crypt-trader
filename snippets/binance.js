@@ -52,3 +52,19 @@ binance.allOrders("VIBEBTC", (error, orders, symbol) => {
 
 
 
+//////////////////////////////////
+
+data.forEach(function(e) {
+  if (e.type == 'sell') {
+    prices.push(e.price);
+  }
+});
+
+> prices.reduce(function(a, b) { return Math.min(a, b); });
+0.00003229
+> prices.indexOf( prices.reduce(function(a, b) { return Math.min(a, b); }) )
+2
+
+> buys = []
+[]
+> sells = []

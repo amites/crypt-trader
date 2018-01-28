@@ -1,9 +1,19 @@
 // Begin Header Setup
 require('dotenv').load();
 
+// DEV
+const player = require('play-sound')(opts = {})
+const DEVMODE = true;
+let alert_path = '/home/alvin/workspace/cryptocurrency/code/cryptfinder/static/mp3/computer-error.mp3';
+
+// END DEV
+
+const assert = require('assert');
+const clone = require('clone');
+
 const binance = require('node-binance-api');
 let tradesCurrent = [];
-let tradesTrigger = {};
+let triggerData = {};
 
 
 // Setup pairs
@@ -14,9 +24,39 @@ basePairs.forEach(function(e) {
   tradePairs[e] = [];
 });
 
-tradesTrigger['BNBUSDT'] = {
-  'qty': '0.85',
-  'price': '1113.0574',
+triggerData = {
+  'buy': {
+    'BNBUSDT': [
+      {
+        'qty': 400,
+        'price': 0.00003238
+      },
+      {
+        'qty': 600,
+        'price': 0.00003228
+      },
+      {
+        'qty': 800,
+        'price': 0.00003218
+      }
+    ]
+  },
+  'sell': {
+    'BNBUSDT': [
+      {
+        'qty': 400,
+        'price': 0.00003249
+      },
+      {
+        'qty': 600,
+        'price': 0.00003239
+      },
+      {
+        'qty': 800,
+        'price': 0.00003229
+      }
+    ]
+  }
 };
 
 let binanceWsMap = {
@@ -58,9 +98,26 @@ binance.options({
 function mapBinanceWsData(raw_data) {
   let data = {};
   for (let key in binanceWsMap) {
-    data[binanceWsMap[key]] = raw_data[key]
+    data[binanceWsMap[key]] = (isNaN(parseFloat(raw_data[key]))) ? raw_data[key] : parseFloat(raw_data[key]);
   }
   return data;
+}
+
+function place_limit_order(symbol_pair, obj) {
+  // binance[obj.type](symbol_pair, obj.qty, obj.price, {type: 'LIMIT'}, (error, response) => {
+  //   console.log('Error on order: ', error);
+  //
+  //   console.log("Limit Buy response", response);
+  //   console.log("order id: " + response.orderId);
+  // });
+
+  console.log('I Would have placed a trade for ', symbol_pair, ' for: ', obj);
+}
+
+function place_limit_orders(symbol_pair, limitData) {
+  limitData.forEach(function (obj) {
+    place_limit_order(symbol_pair, obj);
+  });
 }
 
 // end Header Setup
@@ -76,7 +133,7 @@ function balance_update(data) {
 }
 
 
-let trade_data = {};
+let tradeData = {};
 function trade_execution_update(raw_data) {
   console.log('Updated trade status');
 
@@ -93,23 +150,60 @@ function trade_execution_update(raw_data) {
     console.log("..price: "+price+", quantity: "+quantity);
     return;
   }
+
   //NEW, CANCELED, REPLACED, REJECTED, TRADE, EXPIRED
   console.log(symbol+"\t"+side+" "+executionType+" "+orderType+" ORDER #"+orderId);
 
 
   ///////////
-  trade_data = mapBinanceWsData(raw_data);
+  tradeData = mapBinanceWsData(raw_data);
 
-  if (trade_data.current_type === 'TRADE' && s in tradesTrigger) {
-    // place trade
-      // create loop, trade qty - trigger qty
-      // if trigger qty > trade qty update trade qty
-    // update tradesTrigger
-      // remove entries where qty 0
-      // check for empty list
-        // alert user
-    // log event
-    // alert user
+  let triggerSide = (tradeData.side === 'BUY') ? 'sell' : 'buy';
+  // if (tradeData.current_type === 'TRADE' && s in triggerData[triggerSide]) {
+  console.log('DEVMODE: ', DEVMODE);
+  if (DEVMODE && tradeData.symbol in triggerData[triggerSide] && triggerData[triggerSide][tradeData.symbol].length) {
+    // DEV
+    console.log('Found triggerData for ', tradeData.symbol);
+
+    player.play(alert_path, function(err){
+      if (err) throw err
+    });
+  // END DEV
+
+    let triggerKey = (triggerSide === 'buy') ? 'min' : 'max';
+    let data = triggerData[triggerSide][tradeData.symbol];
+    let prices = [];
+    data.forEach(function(e) { prices.push(e.price); });
+
+    let n = 0;
+    while (n < 1) {
+      if (tradeData.last_quantity === 0 || !data.length) {
+        n = 1;  // trigger exit of loop
+      }
+
+      let priceExtrema = prices.reduce(function(a, b) { return Math[triggerKey](a, b); });
+      let i = prices.indexOf(priceExtrema);
+      let curTradeData = clone(data[i]);
+      assert.equal(curTradeData.price, priceExtrema);
+      if (tradeData.last_quantity < curTradeData.qty) {
+        curTradeData.qty = tradeData.last_quantity;
+      }
+
+      console.log('preparing to palce limit order');
+      place_limit_order(data.symbol, curTradeData);
+
+      if (curTradeData.qty >= data[i].qty) {
+        data.splice(i, 1);
+        tradeData.last_quantity -= curTradeData.qty;
+      } else {
+        data[i].qty -= curTradeData.qty;
+      }
+
+      console.log('Placed order for ', tradeData.symbol, ' for: ', curTradeData);
+      // TODO: alert user
+    }
+  } else {
+    console.log('no triggerData for ', triggerSide, ' ', tradeData.symbol);
   }
 }
 

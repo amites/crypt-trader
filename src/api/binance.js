@@ -20,7 +20,8 @@ basePairs.forEach(function(e) {
 let tradeTriggers = {};
 // tradeTriggers['BNBUSDT'] = {
 //   'qty': '0.85',
-//   'price': '1113.0574',
+//   'price': '111113.0574',
+//   'type': 'buy',
 // };
 
 let binanceWsMap = {
@@ -92,6 +93,8 @@ function getBinancePairs() {
       }
     });
   });
+
+  return tradePairs;
 }
 
 // End Binance Utils //
@@ -129,62 +132,84 @@ function trade_execution_update(data) {
 
 
 
-
 // Trade
 
 // Demo data for place_limit_orders
-// let limitData = [
-//   {
-//     'symbol': 'IOSTBTC',
-//     'qty': 400,
-//     'price': 0.00003238,
-//     'type': 'buy'
-//   },
-//   {
-//     'symbol': 'IOSTBTC',
-//     'qty': 600,
-//     'price': 0.00003228,
-//     'type': 'buy'
-//   },
-//   {
-//     'symbol': 'IOSTBTC',
-//     'qty': 800,
-//     'price': 0.00003218,
-//     'type': 'buy'
-//   }
-// ];
+// let newlimitData = {
+//   'IOSTBTC': [
+//     {
+//       'qty': 400,
+//       'price': 0.00003238,
+//       'type': 'buy'
+//     },
+//     {
+//       'qty': 600,
+//       'price': 0.00003228,
+//       'type': 'buy'
+//     },
+//     {
+//       'qty': 800,
+//       'price': 0.00003218,
+//       'type': 'buy'
+//     }
+//   ]
+// };
 //
-// let triggerData = [
-//   {
-//     'symbol': 'IOSTBTC',
-//     'qty': 400,
-//     'price': 0.00003238,
-//     'type': 'sell'
-//   },
-//   {
-//     'symbol': 'IOSTBTC',
-//     'qty': 600,
-//     'price': 0.00003228,
-//     'type': 'sell'
-//   },
-//   {
-//     'symbol': 'IOSTBTC',
-//     'qty': 800,
-//     'price': 0.00003218,
-//     'type': 'sell'
-//   }
-// ];
 
-function place_limit_orders(limitData, triggerData) {
-  limitData.forEach(function(obj) {
-    binance[obj.type](obj.symbol, obj.qty, obj.price, {type:'LIMIT'}, (error, response) => {
-      console.log('Error on order: ', error);
 
-      console.log("Limit Buy response", response);
-      console.log("order id: " + response.orderId);
-    });
+
+let triggerData = {
+  'buy': {
+    'IOSTBTC': [
+      {
+        'qty': 400,
+        'price': 0.00003238
+      },
+      {
+        'qty': 600,
+        'price': 0.00003228
+      },
+      {
+        'qty': 800,
+        'price': 0.00003218
+      }
+    ]
+  },
+  'sell': {
+    'IOSTBTC': [
+      {
+        'qty': 400,
+        'price': 0.00003249
+      },
+      {
+        'qty': 600,
+        'price': 0.00003239
+      },
+      {
+        'qty': 800,
+        'price': 0.00003229
+      }
+    ]
+  }
+};
+
+
+function place_limit_order(tradeSymbol, obj) {
+  binance[obj.type](tradeSymbol, obj.qty, obj.price, {type: 'LIMIT'}, (error, response) => {
+    console.log('Error on order: ', error);
+
+    console.log("Limit Buy response", response);
+    console.log("order id: " + response.orderId);
   });
+}
 
+function place_limit_orders(tradeSymbol, limitData) {
+  limitData.forEach(function (obj) {
+    place_limit_order(tradeSymbol, obj);
+  });
+}
+
+function add_triggers(triggerData) {
   triggerData.forEach(function(e) {
     tradeTriggers[e.symbol].push({
       'qty': e.qty,
