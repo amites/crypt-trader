@@ -61,7 +61,32 @@ binance.options({
   test: true
 });
 
+// Common utils
+function place_limit_orders(tradeSymbol, limitData) {
+  limitData.forEach(function (obj) {
+    place_limit_order(tradeSymbol, obj);
+  });
+}
+
+function add_triggers(triggerData) {
+  triggerData.forEach(function(e) {
+    tradeTriggers[e.symbol].push({
+      'qty': e.qty,
+      'price': e.price
+    });
+  });
+}
+
+
 // Binance Utils //
+function place_limit_order(tradeSymbol, obj) {
+  binance[obj.type](tradeSymbol, obj.qty, obj.price, {type: 'LIMIT'}, (error, response) => {
+    console.log('Error on order: ', error);
+
+    console.log("Limit Buy response", response);
+    console.log("order id: " + response.orderId);
+  });
+}
 
 function mapBinanceWsData(raw_data) {
   let data = {};
@@ -104,7 +129,7 @@ function getBinancePairs() {
 // https://github.com/binance-exchange/binance-official-api-docs/blob/master/user-data-stream.md
 
 
-// Get Data Functions
+// ws triggered functions
 function balance_update(data) {
   console.log("Balance Updates\n");
   for ( let obj of data.B ) {
@@ -115,21 +140,59 @@ function balance_update(data) {
 }
 
 
-function trade_execution_update(data) {
-  let { x:executionType, s:symbol, p:price, q:quantity, S:side, o:orderType, i:orderId, X:orderStatus } = data;
-  console.log('Updated trade status');
-  if ( executionType == "NEW" ) {
-    if ( orderStatus == "REJECTED" ) {
-      console.log("Order Failed! Reason: "+data.r);
-    }
-    console.log(symbol+" "+side+" "+orderType+" ORDER #"+orderId+" ("+orderStatus+")");
-    console.log("..price: "+price+", quantity: "+quantity);
-    return;
-  }
-  //NEW, CANCELED, REPLACED, REJECTED, TRADE, EXPIRED
-  console.log(symbol+"\t"+side+" "+executionType+" "+orderType+" ORDER #"+orderId);
-}
+function trade_execution_update(raw_data) {
+  // console.log('Updated trade status');
 
+  let tradeData = map_binance_ws_data(raw_data);
+  tradeData.trigger_qty = tradeData.last_qty;
+
+  let triggerSide = (tradeData.side === 'BUY') ? 'sell' : 'buy';
+  console.log('triggerSide: ', triggerSide);
+
+  if (tradeData.current_type === 'TRADE' && tradeData.symbol in triggerData[triggerSide] && triggerData[triggerSide][tradeData.symbol].length) {
+    let priceExtrema, i, curTradeData;
+    let n = 0;
+    let prices = [];
+    let triggerKey = (triggerSide === 'buy') ? 'min' : 'max';
+    let data = triggerData[triggerSide][tradeData.symbol];
+
+    data.forEach(function(e) { prices.push(e.price); });
+
+    while (n < 1) {
+      console.log('running loop -- trade_qty: ', tradeData.last_qty, ' trigger_qty: ', tradeData.trigger_qty, ' -- num triggers: ', data.length);
+
+      priceExtrema = prices.reduce(function(a, b) { return Math[triggerKey](a, b); });
+      i = prices.indexOf(priceExtrema);
+      curTradeData = clone(data[i]);
+
+      assert.equal(curTradeData.price, priceExtrema);
+      if (curTradeData.qty > tradeData.trigger_qty) {
+        curTradeData.qty = tradeData.trigger_qty;
+      }
+
+      console.log('preparing to place limit order');
+      place_limit_order(tradeData.symbol, curTradeData);
+
+      data[i].qty -= curTradeData.qty;
+      tradeData.trigger_qty -= curTradeData.qty;
+      if (data[i].qty === 0) {
+        prices.splice(prices.indexOf(curTradeData.price), 1);
+        data.splice(i, 1);
+      }
+
+      console.log('Placed order for ', tradeData.symbol, ' pending: ', tradeData.trigger_qty, ' for: ', curTradeData, '\n');
+      // TODO: alert user
+
+      if (tradeData.trigger_qty === 0 || !data.length) {
+        n = 1;  // trigger exit of loop
+      } else {
+        console.log('End of loop -- ', tradeData.symbol, ' -- trigger_qty: ', tradeData.trigger_qty);
+      }
+    }
+  } else {
+    console.log('no triggers for ', triggerSide, ' ', tradeData.symbol);
+  }
+}
 
 
 // Trade
@@ -157,67 +220,40 @@ function trade_execution_update(data) {
 //
 
 
-
-let triggerData = {
-  'buy': {
-    'IOSTBTC': [
-      {
-        'qty': 400,
-        'price': 0.00003238
-      },
-      {
-        'qty': 600,
-        'price': 0.00003228
-      },
-      {
-        'qty': 800,
-        'price': 0.00003218
-      }
-    ]
-  },
-  'sell': {
-    'IOSTBTC': [
-      {
-        'qty': 400,
-        'price': 0.00003249
-      },
-      {
-        'qty': 600,
-        'price': 0.00003239
-      },
-      {
-        'qty': 800,
-        'price': 0.00003229
-      }
-    ]
-  }
-};
-
-
-function place_limit_order(tradeSymbol, obj) {
-  binance[obj.type](tradeSymbol, obj.qty, obj.price, {type: 'LIMIT'}, (error, response) => {
-    console.log('Error on order: ', error);
-
-    console.log("Limit Buy response", response);
-    console.log("order id: " + response.orderId);
-  });
-}
-
-function place_limit_orders(tradeSymbol, limitData) {
-  limitData.forEach(function (obj) {
-    place_limit_order(tradeSymbol, obj);
-  });
-}
-
-function add_triggers(triggerData) {
-  triggerData.forEach(function(e) {
-    tradeTriggers[e.symbol].push({
-      'qty': e.qty,
-      'price': e.price
-    });
-  });
-}
-
+// let triggerData = {
+//   'buy': {
+//     'IOSTBTC': [
+//       {
+//         'qty': 400,
+//         'price': 0.00003238
+//       },
+//       {
+//         'qty': 600,
+//         'price': 0.00003228
+//       },
+//       {
+//         'qty': 800,
+//         'price': 0.00003218
+//       }
+//     ]
+//   },
+//   'sell': {
+//     'IOSTBTC': [
+//       {
+//         'qty': 400,
+//         'price': 0.00003249
+//       },
+//       {
+//         'qty': 600,
+//         'price': 0.00003239
+//       },
+//       {
+//         'qty': 800,
+//         'price': 0.00003229
+//       }
+//     ]
+//   }
+// };
 
 
 // setUp

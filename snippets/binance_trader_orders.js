@@ -24,41 +24,6 @@ basePairs.forEach(function(e) {
   tradePairs[e] = [];
 });
 
-triggerData = {
-  'buy': {
-    'BNBUSDT': [
-      {
-        'qty': 400,
-        'price': 0.00003238
-      },
-      {
-        'qty': 600,
-        'price': 0.00003228
-      },
-      {
-        'qty': 800,
-        'price': 0.00003218
-      }
-    ]
-  },
-  'sell': {
-    'BNBUSDT': [
-      {
-        'qty': 400,
-        'price': 0.00003249
-      },
-      {
-        'qty': 600,
-        'price': 0.00003239
-      },
-      {
-        'qty': 800,
-        'price': 0.00003229
-      }
-    ]
-  }
-};
-
 let binanceWsMap = {
   "e": "event_type",
   "E": "event_time",
@@ -67,17 +32,17 @@ let binanceWsMap = {
   "S": "side",
   "o": "order_type",
   "f": "time_in_force",
-  "q": "order_quantity",
+  "q": "order_qty",
   "p": "order_price",
   "P": "stop_price",
-  "F": "iceberg_quantity",
+  "F": "iceberg_qty",
   "C": "original_client_order_id",
   "x": "current_type",
   "X": "order_status",
   "r": "reject_reason",
   "i": "order_id",
-  "l": "last_quantity",
-  "z": "cumulative_quantity",
+  "l": "last_qty",
+  "z": "cumulative_qty",
   "L": "last_price",
   "n": "commission_amount",
   "N": "commission_asset",
@@ -94,11 +59,57 @@ binance.options({
   test: true // If you want to use sandbox mode where orders are simulated
 });
 
-
-function mapBinanceWsData(raw_data) {
+function map_binance_ws_data(raw_data) {
   let data = {};
   for (let key in binanceWsMap) {
     data[binanceWsMap[key]] = (isNaN(parseFloat(raw_data[key]))) ? raw_data[key] : parseFloat(raw_data[key]);
+  }
+  return data;
+}
+
+
+// DEVMODE
+if (DEVMODE) {
+  triggerData = {
+    'buy': {
+      'BNBUSDT': [
+        {
+          'qty': 400,
+          'price': 0.00003238
+        },
+        {
+          'qty': 600,
+          'price': 0.00003228
+        },
+        {
+          'qty': 400,
+          'price': 0.00003218
+        }
+      ]
+    },
+    'sell': {
+      'BNBUSDT': [
+        {
+          'qty': 400,
+          'price': 0.00003249
+        },
+        {
+          'qty': 600,
+          'price': 0.00003239
+        },
+        {
+          'qty': 800,
+          'price': 0.00003229
+        }
+      ]
+    }
+  };
+}
+
+function unmap_binance_ws_data(tradeData) {
+  let data = {};
+  for (let key in binanceWsMap) {
+    data[key] = tradeData[binanceWsMap[key]];
   }
   return data;
 }
@@ -114,6 +125,8 @@ function place_limit_order(symbol_pair, obj) {
   console.log('I Would have placed a trade for ', symbol_pair, ' for: ', obj);
 }
 
+// END DEVMODE
+
 function place_limit_orders(symbol_pair, limitData) {
   limitData.forEach(function (obj) {
     place_limit_order(symbol_pair, obj);
@@ -125,82 +138,85 @@ function place_limit_orders(symbol_pair, limitData) {
 
 function balance_update(data) {
   console.log("Balance Updates\n");
-  for ( let obj of data.B ) {
-    let { a:asset, f:available, l:onOrder } = obj;
-    if ( available == "0.00000000" ) continue;
-    console.log(asset+"\tavailable: "+available+" ("+onOrder+" on order)");
-  }
+  // for ( let obj of data.B ) {
+  //   let { a:asset, f:available, l:onOrder } = obj;
+  //   if ( available == "0.00000000" ) continue;
+  //   console.log(asset+"\tavailable: "+available+" ("+onOrder+" on order)");
+  // }
 }
 
 
-let tradeData = {};
+// DEVMODE global var
+let lastTradeData = {};
+
 function trade_execution_update(raw_data) {
-  console.log('Updated trade status');
+  // console.log('Updated trade status');
 
-  console.log('data:\n', raw_data, '\n\n');
-
-  let { x:executionType, s:symbol, p:price, q:quantity, S:side, o:orderType, i:orderId, X:orderStatus } = raw_data;
-
-  if ( executionType === "NEW" ) {
-    if ( orderStatus === "REJECTED" ) {
-      console.log("Order Failed! Reason: ", data.r);
-      return
-    }
-    console.log(symbol+" "+side+" "+orderType+" ORDER #"+orderId+" ("+orderStatus+")");
-    console.log("..price: "+price+", quantity: "+quantity);
-    return;
-  }
-
-  //NEW, CANCELED, REPLACED, REJECTED, TRADE, EXPIRED
-  console.log(symbol+"\t"+side+" "+executionType+" "+orderType+" ORDER #"+orderId);
-
-
-  ///////////
-  tradeData = mapBinanceWsData(raw_data);
+  let tradeData = map_binance_ws_data(raw_data);
+  tradeData.trigger_qty = tradeData.last_qty;
+  // DEVMODE
+  lastTradeData = tradeData;
 
   let triggerSide = (tradeData.side === 'BUY') ? 'sell' : 'buy';
-  // if (tradeData.current_type === 'TRADE' && s in triggerData[triggerSide]) {
-  console.log('DEVMODE: ', DEVMODE);
+  console.log('triggerSide: ', triggerSide);
+
+  // if (tradeData.current_type === 'TRADE' && s in triggerData[triggerSide] && triggerData[triggerSide][tradeData.symbol].length) {
+  // console.log('DEVMODE: ', DEVMODE);
   if (DEVMODE && tradeData.symbol in triggerData[triggerSide] && triggerData[triggerSide][tradeData.symbol].length) {
-    // DEV
-    console.log('Found triggerData for ', tradeData.symbol);
+    if (DEVMODE) {
+      // DEV
+      // console.log('Found triggerData for ', tradeData.symbol);
 
-    player.play(alert_path, function(err){
-      if (err) throw err
-    });
-  // END DEV
+      player.play(alert_path, function (err) {
+        if (err) throw err
+      });
 
+      tradeData.last_qty += 900;
+      tradeData.trigger_qty += 900;
+      // END DEV
+    }
+
+    let priceExtrema, i, curTradeData;
+    let n = 0;
+    let prices = [];
     let triggerKey = (triggerSide === 'buy') ? 'min' : 'max';
     let data = triggerData[triggerSide][tradeData.symbol];
-    let prices = [];
+
     data.forEach(function(e) { prices.push(e.price); });
 
-    let n = 0;
     while (n < 1) {
-      if (tradeData.last_quantity === 0 || !data.length) {
+      console.log('running loop -- trade_qty: ', tradeData.last_qty, ' trigger_qty: ', tradeData.trigger_qty, ' -- num triggers: ', data.length);
+
+      priceExtrema = prices.reduce(function(a, b) { return Math[triggerKey](a, b); });
+      i = prices.indexOf(priceExtrema);
+      curTradeData = clone(data[i]);
+
+      // let DEVDATA = clone(data[i]);
+      assert.equal(curTradeData.price, priceExtrema);
+      if (curTradeData.qty > tradeData.trigger_qty) {
+        curTradeData.qty = tradeData.trigger_qty;
+      }
+
+      console.log('preparing to place limit order');
+      place_limit_order(tradeData.symbol, curTradeData);
+
+      data[i].qty -= curTradeData.qty;
+      tradeData.trigger_qty -= curTradeData.qty;
+      if (data[i].qty === 0) {
+        prices.splice(prices.indexOf(curTradeData.price), 1);
+        data.splice(i, 1);
+      }
+
+      console.log('Placed order for ', tradeData.symbol, ' pending: ', tradeData.trigger_qty, ' for: ', curTradeData);
+      // console.log('Original trigger data: ', DEVDATA);
+      // console.log(' current trigger data: ', data[i]);
+      console.log('\n');
+      // TODO: alert user
+
+      if (tradeData.trigger_qty === 0 || !data.length) {
         n = 1;  // trigger exit of loop
       }
-
-      let priceExtrema = prices.reduce(function(a, b) { return Math[triggerKey](a, b); });
-      let i = prices.indexOf(priceExtrema);
-      let curTradeData = clone(data[i]);
-      assert.equal(curTradeData.price, priceExtrema);
-      if (tradeData.last_quantity < curTradeData.qty) {
-        curTradeData.qty = tradeData.last_quantity;
-      }
-
-      console.log('preparing to palce limit order');
-      place_limit_order(data.symbol, curTradeData);
-
-      if (curTradeData.qty >= data[i].qty) {
-        data.splice(i, 1);
-        tradeData.last_quantity -= curTradeData.qty;
-      } else {
-        data[i].qty -= curTradeData.qty;
-      }
-
-      console.log('Placed order for ', tradeData.symbol, ' for: ', curTradeData);
-      // TODO: alert user
+      console.log('End of loop -- ', tradeData.symbol, ' -- trigger_qty: ', tradeData.trigger_qty);
     }
   } else {
     console.log('no triggerData for ', triggerSide, ' ', tradeData.symbol);
@@ -210,3 +226,20 @@ function trade_execution_update(raw_data) {
 binance.websockets.userData(balance_update, trade_execution_update);
 
 
+// Highly verbose demo function
+// function trade_execution_update(data) {
+//   let { x:executionType, s:symbol, p:price, q:quantity, S:side, o:orderType, i:orderId, X:orderStatus } = data;
+//   console.log('Updated trade status');
+//   if ( executionType == "NEW" ) {
+//     if ( orderStatus == "REJECTED" ) {
+//       console.log("Order Failed! Reason: "+data.r);
+//     }
+//     console.log(symbol+" "+side+" "+orderType+" ORDER #"+orderId+" ("+orderStatus+")");
+//     console.log("..price: "+price+", quantity: "+quantity);
+//     return;
+//   }
+//   //NEW, CANCELED, REPLACED, REJECTED, TRADE, EXPIRED
+//   console.log(symbol+"\t"+side+" "+executionType+" "+orderType+" ORDER #"+orderId);
+// }
+//
+//
