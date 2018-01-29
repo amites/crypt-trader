@@ -55,8 +55,10 @@ class App extends Component {
     return (
       <div className="App">
         <header className="App-header">
-          <img src={logo} className="App-logo" alt="logo" />
-          <h1>CryptTrader</h1>
+          <h1>
+            <img src={logo} className="App-logo" alt="logo" />
+            CryptTrader
+          </h1>
         </header>
 
         {/*form.container>(div.row>h3)+(div.row.mb-3>(div.col>input#symbol)+(div.col>label+input[disabled]#symbol-price))+(div.form-group.mb-2*2>h1+(div.row>(div.col-6>div.row>div.col*2>input#buy-1)+(div.col-6>(p*2>span)+div.row>div.col*2>label+input))+hr.mb-3*/}
