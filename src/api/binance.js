@@ -1,5 +1,8 @@
 require('dotenv').load();
 
+const assert = require('assert');
+const clone = require('clone');
+
 const binance = require('node-binance-api');
 let tradesOpen = {};
 let tradeObj = [];
@@ -17,8 +20,8 @@ basePairs.forEach(function(e) {
   tradePairs[e] = [];
 });
 
-let tradeTriggers = {};
-// tradeTriggers['BNBUSDT'] = {
+let triggerData = {};
+// triggerData['BNBUSDT'] = {
 //   'qty': '0.85',
 //   'price': '111113.0574',
 //   'type': 'buy',
@@ -68,9 +71,9 @@ function place_limit_orders(tradeSymbol, limitData) {
   });
 }
 
-function add_triggers(triggerData) {
-  triggerData.forEach(function(e) {
-    tradeTriggers[e.symbol].push({
+function add_triggers(newTriggerData) {
+  newTriggerData.forEach(function(e) {
+    triggerData[e.symbol].push({
       'qty': e.qty,
       'price': e.price
     });
@@ -88,7 +91,7 @@ function place_limit_order(tradeSymbol, obj) {
   });
 }
 
-function mapBinanceWsData(raw_data) {
+function map_binance_ws_data(raw_data) {
   let data = {};
   for (let key in binanceWsMap) {
     data[binanceWsMap[key]] = raw_data[key]
@@ -96,7 +99,7 @@ function mapBinanceWsData(raw_data) {
   return data;
 }
 
-function getBinancePairs() {
+function get_binance_pairs() {
   binance.bookTickers((error, ticker) => {
     devTicker = ticker;
     symbolPairs = Object.keys(ticker);
@@ -112,9 +115,9 @@ function getBinancePairs() {
         }
       });
 
-      // setup tradeTriggers
-      if (!(s in tradeTriggers)) {
-        tradeTriggers[s] = [];
+      // setup triggerData
+      if (!(s in triggerData)) {
+        triggerData[s] = [];
       }
     });
   });
