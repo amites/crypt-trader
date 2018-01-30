@@ -9,6 +9,26 @@ const url = require('url')
 
 const binance = require('./api/binance')
 
+const ipcMain = require('electron').ipcMain;
+ipcMain.on('async', function(event, arg) {
+  console.log('Got signal from client', arg);
+  event.sender.send('asynchronous-reply', 'pong');
+});
+
+ipcMain.on('synchronous-message', function(event, arg) {
+  console.log(arg);  // prints "ping"
+  event.returnValue = 'pong';
+});
+ipcMain.on('asynchronous-message', function(event, arg) {
+  console.log(arg);  // prints "ping"
+  event.sender.send('asynchronous-reply', 'pong');
+});
+
+ipcMain.on('synchronous-message', function(event, arg) {
+  console.log(arg);  // prints "ping"
+  event.returnValue = 'pong';
+});
+
 
 
 

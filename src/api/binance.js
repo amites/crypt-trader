@@ -20,12 +20,10 @@ basePairs.forEach(function(e) {
   tradePairs[e] = [];
 });
 
-let triggerData = {};
-// triggerData['BNBUSDT'] = {
-//   'qty': '0.85',
-//   'price': '111113.0574',
-//   'type': 'buy',
-// };
+let triggerData = {
+  'buy': {},
+  'sell': {}
+};
 
 let binanceWsMap = {
   "e": "event_type",
@@ -65,7 +63,7 @@ binance.options({
 });
 
 // Common utils
-function place_limit_orders(tradeSymbol, limitData) {
+function place_limit_orders(tradeSymbol, side, limitData) {
   limitData.forEach(function (obj) {
     place_limit_order(tradeSymbol, obj);
   });
@@ -133,6 +131,65 @@ function get_binance_pairs() {
 
 
 // ws triggered functions
+// Trade
+
+// Demo data for place_limit_orders
+// let newlimitData = {
+//   'IOSTBTC': [
+//     {
+//       'qty': 400,
+//       'price': 0.00003238,
+//       'type': 'buy'
+//     },
+//     {
+//       'qty': 600,
+//       'price': 0.00003228,
+//       'type': 'buy'
+//     },
+//     {
+//       'qty': 800,
+//       'price': 0.00003218,
+//       'type': 'buy'
+//     }
+//   ]
+// };
+//
+
+
+// let triggerData = {
+//   'buy': {
+//     'IOSTBTC': [
+//       {
+//         'qty': 400,
+//         'price': 0.00003238
+//       },
+//       {
+//         'qty': 600,
+//         'price': 0.00003228
+//       },
+//       {
+//         'qty': 800,
+//         'price': 0.00003218
+//       }
+//     ]
+//   },
+//   'sell': {
+//     'IOSTBTC': [
+//       {
+//         'qty': 400,
+//         'price': 0.00003249
+//       },
+//       {
+//         'qty': 600,
+//         'price': 0.00003239
+//       },
+//       {
+//         'qty': 800,
+//         'price': 0.00003229
+//       }
+//     ]
+//   }
+// };
 function balance_update(data) {
   console.log("Balance Updates\n");
   for ( let obj of data.B ) {
@@ -196,67 +253,6 @@ function trade_execution_update(raw_data) {
     console.log('no triggers for ', triggerSide, ' ', tradeData.symbol);
   }
 }
-
-
-// Trade
-
-// Demo data for place_limit_orders
-// let newlimitData = {
-//   'IOSTBTC': [
-//     {
-//       'qty': 400,
-//       'price': 0.00003238,
-//       'type': 'buy'
-//     },
-//     {
-//       'qty': 600,
-//       'price': 0.00003228,
-//       'type': 'buy'
-//     },
-//     {
-//       'qty': 800,
-//       'price': 0.00003218,
-//       'type': 'buy'
-//     }
-//   ]
-// };
-//
-
-
-// let triggerData = {
-//   'buy': {
-//     'IOSTBTC': [
-//       {
-//         'qty': 400,
-//         'price': 0.00003238
-//       },
-//       {
-//         'qty': 600,
-//         'price': 0.00003228
-//       },
-//       {
-//         'qty': 800,
-//         'price': 0.00003218
-//       }
-//     ]
-//   },
-//   'sell': {
-//     'IOSTBTC': [
-//       {
-//         'qty': 400,
-//         'price': 0.00003249
-//       },
-//       {
-//         'qty': 600,
-//         'price': 0.00003239
-//       },
-//       {
-//         'qty': 800,
-//         'price': 0.00003229
-//       }
-//     ]
-//   }
-// };
 
 
 // setUp
