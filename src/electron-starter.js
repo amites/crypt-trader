@@ -8,26 +8,79 @@ const path = require('path')
 const url = require('url')
 
 const binance = require('./api/binance')
+let binanceSymbols = [];
 
 const ipcMain = require('electron').ipcMain;
-ipcMain.on('async', function(event, arg) {
-  console.log('Got signal from client', arg);
-  event.sender.send('asynchronous-reply', 'pong');
+
+// Change symbol
+function change_symbol_callback(e, tradeSymbol) {
+  if (binanceSymbols.indexOf(tradeSymbol) >= 0) {
+    binance.binance.websockets.trades([tradeSymbol], (trades) => {
+      let data = binance.map_ws_data(trades);
+
+      // console.log(`${tradeSymbol} current data ${data}`)
+      e.sender.send('symbol-price', data)
+    })
+  } else {
+    console.log('trade symbol not found: ', tradeSymbol)
+    e.sender.send('symbol-price', 'INVALID')
+  }
+}
+
+function set_binance_symbols_callback(e, tradeSymbol, ticker) {
+  binanceSymbols = Object.keys(ticker)
+  change_symbol_callback(e, tradeSymbol)
+}
+
+ipcMain.on('change-symbol', function(e, tradeSymbol) {
+  // TODO: manage disconnecting old sockets on change
+  if (binanceSymbols.length) {
+    change_symbol_callback(e, tradeSymbol)
+  } else {
+    binance.binance.prices((error, ticker) => {
+      set_binance_symbols_callback(e, tradeSymbol, ticker)
+    });
+  }
+
+
+  // binance.binance.websockets.trades([tradeSymbol], (trades) => {
+    // e.sender.send('symbol-price', binance.map_ws_data(trades));
+  // });
 });
 
-ipcMain.on('synchronous-message', function(event, arg) {
-  console.log(arg);  // prints "ping"
-  event.returnValue = 'pong';
-});
-ipcMain.on('asynchronous-message', function(event, arg) {
-  console.log(arg);  // prints "ping"
-  event.sender.send('asynchronous-reply', 'pong');
+ipcMain.on('submit-order', function (e, data) {
+  // console.log('called submit-order')
+
+  // console.log(data)
+  // TODO: verify symbol is valid
+  // TODO: add sanity checking against order -- could be inside API?
+
+  // TODO: loop through buy orders -- place orders
+  binance.place_limit_orders(data.tradeSymbol, 'buy', data.ordersBuy)
+
+  // TODO: loop through sell orders -- update tradeData
+  binance.add_triggers(data.tradeSymbol, 'sell', data.ordersSell)
+
+  binance.add_triggers(data.tradeSymbol, 'buy', data.ordersSell)
 });
 
-ipcMain.on('synchronous-message', function(event, arg) {
-  console.log(arg);  // prints "ping"
-  event.returnValue = 'pong';
-});
+// Setup Binance
+binance.binance.websockets.userData(binance.balance_update, binance.trade_execution_update);
+
+
+// ipcMain.on('synchronous-message', function(event, arg) {
+//   console.log(arg);  // prints "ping"
+//   event.returnValue = 'pong';
+// });
+// ipcMain.on('asynchronous-message', function(event, arg) {
+//   console.log(arg);  // prints "ping"
+//   event.sender.send('asynchronous-reply', 'pong');
+// });
+//
+// ipcMain.on('synchronous-message', function(event, arg) {
+//   console.log(arg);  // prints "ping"
+//   event.returnValue = 'pong';
+// });
 
 
 

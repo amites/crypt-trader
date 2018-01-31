@@ -10,6 +10,8 @@ let currentTrades = [];
 
 let devTicker = {};
 
+// DEV
+const DEVMODE = true;
 
 // Setup pairs
 let basePairs = ['BTC', 'ETH', 'BNB', 'USDT'];
@@ -50,8 +52,10 @@ let binanceWsMap = {
   "T": "transaction_time",
   "t": "trade_id",
   "w": "is_working",
-  "m": "maker_side"
+  "m": "maker_side",
+  "a": "aggregate_trade_id"
 };
+
 
 
 binance.options({
@@ -69,9 +73,12 @@ function place_limit_orders(tradeSymbol, side, limitData) {
   });
 }
 
-function add_triggers(newTriggerData) {
+function add_triggers(symbol, side, newTriggerData) {
   newTriggerData.forEach(function(e) {
-    triggerData[e.symbol].push({
+    if (!(symbol in triggerData[side])) {
+      triggerData[side][symbol] = [];
+    }
+    triggerData[side][symbol].push({
       'qty': e.qty,
       'price': e.price
     });
@@ -81,6 +88,14 @@ function add_triggers(newTriggerData) {
 
 // Binance Utils //
 function place_limit_order(tradeSymbol, obj) {
+  if (!obj.qty || !obj.price) {
+    console.log('invalid order placed -- skipping -- ', obj);
+    return
+  }
+  if (DEVMODE) {
+    console.log(`Would have placed an order for ${tradeSymbol} qty: ${obj.qty} price: ${obj.price}`);
+    return
+  }
   binance[obj.type](tradeSymbol, obj.qty, obj.price, {type: 'LIMIT'}, (error, response) => {
     console.log('Error on order: ', error);
 
@@ -89,18 +104,30 @@ function place_limit_order(tradeSymbol, obj) {
   });
 }
 
-function map_binance_ws_data(raw_data) {
+function map_ws_data(raw_data) {
   let data = {};
   for (let key in binanceWsMap) {
-    data[binanceWsMap[key]] = raw_data[key]
+    if (typeof(raw_data[key]) != "undefined") {
+      data[binanceWsMap[key]] = (isNaN(parseFloat(raw_data[key]))) ? raw_data[key] : parseFloat(raw_data[key]);
+    }
   }
   return data;
 }
 
-function get_binance_pairs() {
+function get_all_symbols() {
+  let symbolPairs = [];
   binance.bookTickers((error, ticker) => {
-    devTicker = ticker;
+    console.log(ticker);
+    data = ticker;
+
     symbolPairs = Object.keys(ticker);
+  });
+  return symbolPairs;
+}
+
+function get_all_pairs() {
+  binance.prices((error, ticker) => {
+    devTicker = ticker;
     Object.keys(ticker).forEach(function(s) {
       // setup tradePairs
       basePairs.forEach(function(p) {
@@ -203,13 +230,21 @@ function balance_update(data) {
 function trade_execution_update(raw_data) {
   // console.log('Updated trade status');
 
-  let tradeData = map_binance_ws_data(raw_data);
+  let tradeData = map_ws_data(raw_data);
   tradeData.trigger_qty = tradeData.last_qty;
 
   let triggerSide = (tradeData.side === 'BUY') ? 'sell' : 'buy';
   console.log('triggerSide: ', triggerSide);
 
-  if (tradeData.current_type === 'TRADE' && tradeData.symbol in triggerData[triggerSide] && triggerData[triggerSide][tradeData.symbol].length) {
+  if ((tradeData.current_type === 'TRADE' || DEVMODE) && tradeData.symbol in triggerData[triggerSide] && triggerData[triggerSide][tradeData.symbol].length) {
+    if (DEVMODE) {
+      // console.log('Found triggerData for ', tradeData.symbol);
+
+      tradeData.last_qty += 900;
+      tradeData.trigger_qty += 900;
+      // END DEV
+    }
+
     let priceExtrema, i, curTradeData;
     let n = 0;
     let prices = [];
@@ -217,6 +252,8 @@ function trade_execution_update(raw_data) {
     let data = triggerData[triggerSide][tradeData.symbol];
 
     data.forEach(function(e) { prices.push(e.price); });
+
+    console.log(tradeData);
 
     while (n < 1) {
       console.log('running loop -- trade_qty: ', tradeData.last_qty, ' trigger_qty: ', tradeData.trigger_qty, ' -- num triggers: ', data.length);
@@ -260,3 +297,18 @@ function setUp() {
   binance.websockets.userData(balance_update, trade_execution_update);
 }
 
+get_all_pairs();
+
+module.exports = {
+  symbolPairs: symbolPairs,
+  tradePairs: tradePairs,
+  binance: binance,
+  get_all_pairs: get_all_pairs,
+  get_all_symbols: get_all_symbols,
+  map_ws_data: map_ws_data,
+  balance_update: balance_update,
+  trade_execution_update: trade_execution_update,
+  add_triggers: add_triggers,
+  triggerData: triggerData,
+  place_limit_orders: place_limit_orders
+};

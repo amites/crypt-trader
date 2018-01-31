@@ -12,8 +12,9 @@ import { faPlusCircle } from '@fortawesome/fontawesome-free-solid'
 // const ipcRenderer = require('electron').ipcRenderer;
 // const ipcRenderer = window.require('electron').ipcRenderer;
 // const { ipcRenderer } = window.require('electron');
+const {ipcRenderer} = window.require('electron');
 
-// ipcRenderer.send('async', 1);
+// console.log(ipcRenderer.send('async', 'ping'))
 
 let labels = {
   'exchange': 'Binance',
@@ -25,29 +26,30 @@ let labels = {
   'price': 'Price'
 };
 
+ipcRenderer.on('async-reply', function(e, arg) {
+  console.log('called async-reply -- ', arg);
+});
+
+
 // let currentSide = 'buy';
 let baserPair = 'BTC';
 
-class TradeConfig extends Component {
-  render() {
-    return (
-      <div className="col-6 trade-setup">
-        <p>Coins in Order: <span className="qty-total">0</span></p>
-        <p><span id="base-pair">{baserPair}</span> (cost): <span className="price-total">0</span></p>
-        <div className="row">
-          <div className="col">
-            <label htmlFor="num-orders"># Orders</label>
-            <input type="text" className="num-orders"/>
-          </div>
-          <div className="col">
-            <label htmlFor="percent-step">% Step</label>
-            <input type="text" className="percent-step" default="5"/>
-          </div>
-        </div>
-      </div>
-    );
-  }
-}
+// class TradeConfig extends Component {
+//   render() {
+//     return (
+//       <div className="col-6 trade-setup">
+//         <p>Coins in Order: <span className="qty-total">0</span></p>
+//         <p><span id="base-pair">{baserPair}</span> (cost): <span className="price-total">0</span></p>
+//         <div className="row">
+//           <div className="col">
+//             <label htmlFor="percent-step">% Step</label>
+//             <input type="text" className="percent-step" default="5"/>
+//           </div>
+//         </div>
+//       </div>
+//     );
+//   }
+// }
 
 
 // class TradeRow extends Component {
@@ -73,8 +75,6 @@ class TradeConfig extends Component {
 // }
 
 
-// TODO: bind button to add more order layers
-
 class TradeForm extends Component {
   constructor() {
     super();
@@ -86,19 +86,37 @@ class TradeForm extends Component {
       //   price: 0
       // },
       ordersBuy: [{price: '', qty: ''},{price: '', qty: ''}],
-      orderBuyQty: 0,
       orderBuyPrice: 0,
+      orderBuyQty: 0,
       ordersSell: [{price: '', qty: ''},{price: '', qty: ''}],
       orderSellPrice: 0,
-      tradeSymbol: 'SYMBOL',
-      tradeSymbolPrice: 0,
-      tradeSymbolQty: 0
-    }
+      orderSellQty: 0,
+      tradeSymbol: '',
+      tradeSymbolMoveClass: '',
+      tradeSymbolPrice: '-',
+    };
+
+    this.handleSubmit = this.handleSubmit.bind(this);
   }
 
-
-  onChange = (e) => {
-    this.setState({ tradeSymbol: e.target.value});
+  componentDidMount() {
+    ipcRenderer.on('symbol-price', function (e, data) {
+      console.log('Got symbol-price: ', data);
+      if (data.symbol === this.state.tradeSymbol) {
+        let displayClass = '';
+        if (this.state.tradeSymbol < data.order_price) {
+          displayClass = 'success';
+        } else if (this.state.tradeSymbol > data.order_price) {
+          displayClass = 'danger';
+        } else {
+          displayClass = 'secondary';
+        }
+        this.setState({
+          tradeSymbolPrice: data.order_price,
+          tradeSymbolMoveClass: displayClass
+        });
+      }
+    }.bind(this));
   };
 
   onChangeSymbol = (e) => {
@@ -107,15 +125,21 @@ class TradeForm extends Component {
     this.setState(state);
 
     console.log('changeSymbol: ', state.tradeSymbol);
-
-    // TODO: get data from ipcRenderer
+    if (state.tradeSymbol.length >= 5) {
+      ipcRenderer.send('change-symbol', state.tradeSymbol);
+    }
   };
 
   // TODO: refactor from Buy / Sell functions to single set with side var
+
   onChangeQtyBuy = (i) => (e) => {
     // TODO: confirm value is an int/float else disallow
+    // TODO: make the parseFloat more lenient on processing -- currently prevents `.` etc...
     // console.log('orders Qty Buy called');
     let buyQty = parseFloat(e.target.value);
+    if (!buyQty) {
+      return 'invalid';
+    }
     const newOrdersBuy = this.state.ordersBuy.map((orderBuy, idx) => {
       // console.log('ordersQtyBuy ', idx);
       if (i !== idx) {
@@ -130,6 +154,9 @@ class TradeForm extends Component {
   onChangePriceBuy = (i) => (e) => {
     // console.log('orders Qty Buy called');
     let buyPrice = parseFloat(e.target.value);
+    if (!buyPrice) {
+      return 'invalid';
+    }
     const newOrdersBuy = this.state.ordersBuy.map((orderBuy, idx) => {
       // TODO: confirm value is an int/float else disallow
       // console.log('ordersPriceBuy ', idx);
@@ -137,7 +164,7 @@ class TradeForm extends Component {
         buyPrice += orderBuy.price;
         return orderBuy;
       }
-      return { ...orderBuy, price: parseFloat(e.target.value) };
+      return {...orderBuy, price: parseFloat(e.target.value)};
     });
     this.setState({ordersBuy: newOrdersBuy, orderBuyPrice: buyPrice});
   };
@@ -151,24 +178,53 @@ class TradeForm extends Component {
     this.setState({ ordersBuy: this.state.ordersBuy.filter((obj, idx) => i !== idx) });
   };
 
+  renderTradeSetupBuy(side) {
+    return (
+      <div className="col-6 trade-setup">
+        <p>Coins in Order: <span className="qty-total">{ this.state.orderBuyQty }</span></p>
+        <p><span>{baserPair}</span> (cost): <span className="price-total">{this.state.orderBuyPrice}</span></p>
+        {/*<div className="row">*/}
+          {/*<div className="col">*/}
+            {/*<label htmlFor="percent-step">% Step</label>*/}
+            {/*<input type="text" className="percent-step" default="5"/>*/}
+          {/*</div>*/}
+        {/*</div>*/}
+      </div>
+    );
+  }
+
   onChangeQtySell = (i) => (e) => {
-    console.log('orders Qty Sell called');
+    // console.log('orders Qty Sell called');
+    let sellQty = parseFloat(e.target.value);
+    if (!sellQty) {
+      return 'invalid';
+    }
     const newOrdersSell = this.state.ordersSell.map((orderSell, idx) => {
-      console.log('ordersQtySell ', idx);
-      if (i !== idx) return orderSell;
-      return { ...orderSell, qty: e.target.value };
+      // console.log('ordersQtySell ', idx);
+      if (i !== idx) {
+        sellQty += orderSell.qty;
+        return orderSell;
+      }
+      return { ...orderSell, qty: parseFloat(e.target.value) };
     });
-    this.setState({ordersSell: newOrdersSell});
+    this.setState({ordersSell: newOrdersSell, orderSellQty: sellQty});
   };
 
   onChangePriceSell = (i) => (e) => {
-    console.log('orders Qty Sell called');
+    // console.log('orders Qty Sell called');
+    let sellPrice = parseFloat(e.target.value);
+    if (!sellPrice) {
+      return 'invalid';
+    }
     const newOrdersSell = this.state.ordersSell.map((orderSell, idx) => {
-      console.log('ordersPriceSell ', idx);
-      if (i !== idx) return orderSell;
-      return { ...orderSell, price: e.target.value };
+      // console.log('ordersPriceSell ', idx);
+      if (i !== idx) {
+        sellPrice += orderSell.price;
+        return orderSell;
+      }
+      return { ...orderSell, price: parseFloat(e.target.value) };
     });
-    this.setState({ordersSell: newOrdersSell});
+    this.setState({ordersSell: newOrdersSell, orderSellPrice: sellPrice});
   };
 
   addTradeRowSell = () => {
@@ -181,29 +237,35 @@ class TradeForm extends Component {
     this.setState({ ordersSell: this.state.ordersSell.filter((obj, idx) => i !== idx) });
   };
 
-  renderTradeSetup(side) {
+  renderTradeSetupSell(side) {
     return (
       <div className="col-6 trade-setup">
-        <p>Coins in Order: <span className="qty-total">{ this.state.orderBuyQty }</span></p>
-        <p><span>{baserPair}</span> (cost): <span className="price-total">{this.state.orderBuyPrice}</span></p>
-        <div className="row">
-          <div className="col">
-            <label htmlFor="num-orders"># Orders</label>
-            <input type="text" className="num-orders"/>
-          </div>
-          <div className="col">
-            <label htmlFor="percent-step">% Step</label>
-            <input type="text" className="percent-step" default="5"/>
-          </div>
-        </div>
+        <p>Coins in Order: <span className="qty-total">{ this.state.orderSellQty }</span></p>
+        <p><span>{baserPair}</span> (cost): <span className="price-total">{this.state.orderSellPrice}</span></p>
+        {/*<div className="row">*/}
+          {/*<div className="col">*/}
+            {/*<label htmlFor="percent-step">% Step</label>*/}
+            {/*<input type="text" className="percent-step" default="5"/>*/}
+          {/*</div>*/}
+        {/*</div>*/}
       </div>
     );
+  }
+
+  handleSubmit(e) {
+    console.log('pressed button');
+    console.log(this.state);
+
+    // TODO: validate data valid
+    ipcRenderer.send('submit-order', this.state);
+
+    e.preventDefault();
   }
 
   render() {
     // const { orderBuyPrice, orderSellPrice, tradeSymbol, tradeSymbolPrice } = this.state;
     return (
-      <form className="container" onSubmit={this.handleSubmit}>
+      <form className="container mb-3" onSubmit={this.handleSubmit}>
         <div className="row">
           <h3 className="exchange-title">{labels.exchange}</h3>
         </div>
@@ -212,17 +274,17 @@ class TradeForm extends Component {
             <label htmlFor="symbol">Trade Pair</label>
             <input
               type="text"
+              placeholder="SYMBOL"
               className="form-control"
               value={this.state.tradeSymbol}
               onChange={this.onChangeSymbol}/>
           </div>
           <div className="col">
-            <label htmlFor="symbol-price">Current Price</label>
-            <input
-              type="text"
-              disabled
-              value={this.state.tradeSymbolPrice}
-            />
+            <h4>Current Price</h4>
+            <div
+              className={`alert alert-${this.state.tradeSymbolMoveClass} col-md-4 offset-md-4`}>
+              {this.state.tradeSymbolPrice}
+            </div>
           </div>
         </div>
         <div className="form-group mb-2">
@@ -259,13 +321,13 @@ class TradeForm extends Component {
                 </div>
               ))}
               <div className="mt-6">
-                <button type="button" className="btn btn-success" onClick={this.addTradeRowBuy}>
+                <button type="button" className="btn btn-outline-success" onClick={this.addTradeRowBuy}>
                   <FontAwesomeIcon icon={faPlusCircle} className="fa-lg"/>
                 </button>
               </div>
             </div>
 
-            {this.renderTradeSetup('buy')}
+            {this.renderTradeSetupBuy('buy')}
           </div>
         </div>
         <hr className="mb-3"/>
@@ -308,11 +370,11 @@ class TradeForm extends Component {
                 </button>
               </div>
             </div>
-            {this.renderTradeSetup('sell')}
+            {this.renderTradeSetupSell('sell')}
           </div>
           <hr className="mb-3"/>
         </div>
-        <div className="col-6">
+        <div className="col-6 mb-3">
           <button type="submit" className="btn btn-primary">Submit</button>
         </div>
       </form>
@@ -322,24 +384,6 @@ class TradeForm extends Component {
 
 
 class App extends Component {
-  constructor() {
-    super();
-    this.handleSubmit = this.handleSubmit.bind(this);
-  }
-
-  handleSubmit(e) {
-    e.stopPropagation();
-
-    console.log(e.target);
-
-    const data = new FormData(e.target);
-
-  //  TODO: send data to node via ipcRenderer
-  //  ipcRenderer.send
-    console.log(data);
-  }
-
-
   render() {
     return (
       <div className="App">
