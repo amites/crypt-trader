@@ -91,7 +91,11 @@ let mainWindow
 
 function createWindow () {
   // Create the browser window.
-  mainWindow = new BrowserWindow({width: 800, height: 600})
+  mainWindow = new BrowserWindow({
+    width: 1024,
+    height: 768,
+    icon: path.join(__dirname, 'public/icons/png/64x64.png')
+  })
 
   // and load the index.html of the app.
   mainWindow.loadURL('http://localhost:3000')
