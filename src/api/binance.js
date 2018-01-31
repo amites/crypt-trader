@@ -107,7 +107,7 @@ function place_limit_order(tradeSymbol, obj) {
 function map_ws_data(raw_data) {
   let data = {};
   for (let key in binanceWsMap) {
-    if (typeof(raw_data[key]) != "undefined") {
+    if (typeof(raw_data[key]) !== "undefined") {
       data[binanceWsMap[key]] = (isNaN(parseFloat(raw_data[key]))) ? raw_data[key] : parseFloat(raw_data[key]);
     }
   }
@@ -118,7 +118,6 @@ function get_all_symbols() {
   let symbolPairs = [];
   binance.bookTickers((error, ticker) => {
     console.log(ticker);
-    data = ticker;
 
     symbolPairs = Object.keys(ticker);
   });
@@ -221,7 +220,7 @@ function balance_update(data) {
   console.log("Balance Updates\n");
   for ( let obj of data.B ) {
     let { a:asset, f:available, l:onOrder } = obj;
-    if ( available == "0.00000000" ) continue;
+    if ( available === "0.00000000" ) continue;
     console.log(asset+"\tavailable: "+available+" ("+onOrder+" on order)");
   }
 }

@@ -1,18 +1,20 @@
-const electron = require('electron')
+const electron = require('electron');
 // Module to control application life.
-const app = electron.app
+const app = electron.app;
 // Module to create native browser window.
-const BrowserWindow = electron.BrowserWindow
+const BrowserWindow = electron.BrowserWindow;
 
-const path = require('path')
-const url = require('url')
+const path = require('path');
+const url = require('url');
 
-const binance = require('./api/binance')
+const binance = require('./api/binance');
 let binanceSymbols = [];
 
 const ipcMain = require('electron').ipcMain;
 
 // Change symbol
+
+// TODO: refactor to remove direct calls to binance API and migrate into binance.js
 function change_symbol_callback(e, tradeSymbol) {
   if (binanceSymbols.indexOf(tradeSymbol) >= 0) {
     binance.binance.websockets.trades([tradeSymbol], (trades) => {
@@ -22,13 +24,13 @@ function change_symbol_callback(e, tradeSymbol) {
       e.sender.send('symbol-price', data)
     })
   } else {
-    console.log('trade symbol not found: ', tradeSymbol)
+    console.log('trade symbol not found: ', tradeSymbol);
     e.sender.send('symbol-price', 'INVALID')
   }
 }
 
 function set_binance_symbols_callback(e, tradeSymbol, ticker) {
-  binanceSymbols = Object.keys(ticker)
+  binanceSymbols = Object.keys(ticker);
   change_symbol_callback(e, tradeSymbol)
 }
 
@@ -41,11 +43,6 @@ ipcMain.on('change-symbol', function(e, tradeSymbol) {
       set_binance_symbols_callback(e, tradeSymbol, ticker)
     });
   }
-
-
-  // binance.binance.websockets.trades([tradeSymbol], (trades) => {
-    // e.sender.send('symbol-price', binance.map_ws_data(trades));
-  // });
 });
 
 ipcMain.on('submit-order', function (e, data) {
@@ -56,38 +53,21 @@ ipcMain.on('submit-order', function (e, data) {
   // TODO: add sanity checking against order -- could be inside API?
 
   // TODO: loop through buy orders -- place orders
-  binance.place_limit_orders(data.tradeSymbol, 'buy', data.ordersBuy)
+  binance.place_limit_orders(data.tradeSymbol, 'buy', data.ordersBuy);
 
   // TODO: loop through sell orders -- update tradeData
-  binance.add_triggers(data.tradeSymbol, 'sell', data.ordersSell)
+  binance.add_triggers(data.tradeSymbol, 'sell', data.ordersSell);
 
-  binance.add_triggers(data.tradeSymbol, 'buy', data.ordersSell)
+  binance.add_triggers(data.tradeSymbol, 'buy', data.ordersSell);
 });
 
 // Setup Binance
 binance.binance.websockets.userData(binance.balance_update, binance.trade_execution_update);
 
 
-// ipcMain.on('synchronous-message', function(event, arg) {
-//   console.log(arg);  // prints "ping"
-//   event.returnValue = 'pong';
-// });
-// ipcMain.on('asynchronous-message', function(event, arg) {
-//   console.log(arg);  // prints "ping"
-//   event.sender.send('asynchronous-reply', 'pong');
-// });
-//
-// ipcMain.on('synchronous-message', function(event, arg) {
-//   console.log(arg);  // prints "ping"
-//   event.returnValue = 'pong';
-// });
-
-
-
-
 // Keep a global reference of the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
-let mainWindow
+let mainWindow;
 
 function createWindow () {
   // Create the browser window.
@@ -95,10 +75,10 @@ function createWindow () {
     width: 1024,
     height: 768,
     icon: path.join(__dirname, 'public/icons/png/64x64.png')
-  })
+  });
 
   // and load the index.html of the app.
-  mainWindow.loadURL('http://localhost:3000')
+  mainWindow.loadURL('http://localhost:3000');
 
 //  mainWindow.loadURL(url.format({
 //    pathname: path.join(__dirname, 'index.html'),
@@ -121,7 +101,7 @@ function createWindow () {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.on('ready', createWindow)
+app.on('ready', createWindow);
 
 // Quit when all windows are closed.
 app.on('window-all-closed', function () {
@@ -130,7 +110,7 @@ app.on('window-all-closed', function () {
   if (process.platform !== 'darwin') {
     app.quit()
   }
-})
+});
 
 app.on('activate', function () {
   // On OS X it's common to re-create a window in the app when the
@@ -138,7 +118,7 @@ app.on('activate', function () {
   if (mainWindow === null) {
     createWindow()
   }
-})
+});
 
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and require them here.
