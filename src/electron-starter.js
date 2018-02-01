@@ -22,10 +22,10 @@ function change_symbol_callback(e, tradeSymbol) {
 
       // console.log(`${tradeSymbol} current data ${data}`)
       e.sender.send('symbol-price', data)
-    })
+    });
   } else {
     console.log('trade symbol not found: ', tradeSymbol);
-    e.sender.send('symbol-price', 'INVALID')
+    e.sender.send('symbol-price', 'INVALID');
   }
 }
 
@@ -59,6 +59,25 @@ ipcMain.on('submit-order', function (e, data) {
   binance.add_triggers(data.tradeSymbol, 'sell', data.ordersSell);
 
   binance.add_triggers(data.tradeSymbol, 'buy', data.ordersSell);
+});
+
+function get_trade_symbols_callback(e, data) {
+  console.log('called get-trade-symbols-callback', data);
+  e.sender.send('get-trade-symbols-render', data);
+}
+
+ipcMain.on('get-trade-symbols', function (e, empty) {
+  console.log('called get-trade-symbols');
+
+  if (binance.symbolPairs.length) {
+    return get_trade_symbols_callback(e, binance.symbolPairs);
+  } else {
+    binance.binance.bookTickers((error, ticker) => {
+      console.log('got tickers: ', ticker);
+      binance.symbolPairs = Object.keys(ticker);
+      get_trade_symbols_callback(e, Object.keys(ticker));
+    });
+  }
 });
 
 // Setup Binance

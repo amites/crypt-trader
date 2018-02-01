@@ -2,6 +2,7 @@
 import React, { Component } from 'react';
 import logo from './logo.svg';
 import './App.css';
+import Autosuggest from 'react-autosuggest';
 // import { Navbar, Jumbotron, Button } from 'react-bootstrap';
 
 import FontAwesomeIcon from '@fortawesome/react-fontawesome'
@@ -26,13 +27,49 @@ let labels = {
   'price': 'Price'
 };
 
-ipcRenderer.on('async-reply', function(e, arg) {
-  console.log('called async-reply -- ', arg);
-});
-
-
 // let currentSide = 'buy';
 let baserPair = 'BTC';
+let symbolPairs = [];
+
+// Auto Suggest SYMBOL
+const getSuggestions = value => {
+  const inputValue = value.trim().toUpperCase();
+  const inputLength = inputValue.length;
+
+  if (!symbolPairs.length) {
+    // console.log('no symbol pairs defined');
+    load_trade_symbols();
+    return []
+  } else {
+    // console.log('Got symbol pairs: ', symbolPairs);
+    return inputLength === 0 ? [] : symbolPairs.filter(lang =>
+      lang.toUpperCase().slice(0, inputLength) === inputValue
+    );
+  }
+};
+
+const getSuggestionValue = suggestion => suggestion.name;
+
+const renderSuggestion = suggestion => (
+  <div>
+    {suggestion}
+  </div>
+);
+
+// Load SYMBOLs from node
+ipcRenderer.on('get-trade-symbols-render', function (e, data) {
+  console.log('get-trade-symbols: ', data);
+  symbolPairs = data;
+
+});
+
+function load_trade_symbols() {
+  if (!symbolPairs.length) {
+    ipcRenderer.send('get-trade-symbols', []);
+  } else {
+    return symbolPairs;
+  }
+}
 
 // class TradeConfig extends Component {
 //   render() {
@@ -94,7 +131,10 @@ class TradeForm extends Component {
       tradeSymbol: '',
       tradeSymbolMoveClass: '',
       tradeSymbolPrice: '-',
+      suggestions: []
     };
+
+    load_trade_symbols();
 
     this.handleSubmit = this.handleSubmit.bind(this);
   }
@@ -119,9 +159,9 @@ class TradeForm extends Component {
     }.bind(this));
   };
 
-  onChangeSymbol = (e) => {
+  onChangeSymbol = (e, {newValue, method}) => {
     const state = this.state;
-    state.tradeSymbol = e.target.value;
+    state.tradeSymbol = newValue.toUpperCase();
     this.setState(state);
 
     console.log('changeSymbol: ', state.tradeSymbol);
@@ -130,8 +170,20 @@ class TradeForm extends Component {
     }
   };
 
-  // TODO: refactor from Buy / Sell functions to single set with side var
+  onSuggestionsFetchRequested = ({ value }) => {
+    this.setState({
+      suggestions: getSuggestions(value)
+    });
+  };
 
+  onSuggestionsClearRequested = () => {
+    this.setState({
+      suggestions: []
+    });
+  };
+
+  // TODO: refactor from Buy / Sell functions to single set with side var
+  // BUY/SELL FUNCTIONS
   onChangeQtyBuy = (i) => (e) => {
     // TODO: confirm value is an int/float else disallow
     // TODO: make the parseFloat more lenient on processing -- currently prevents `.` etc...
@@ -251,6 +303,7 @@ class TradeForm extends Component {
       </div>
     );
   }
+  // END BUY/SELL FUNCTIONS
 
   handleSubmit(e) {
     console.log('pressed button');
@@ -264,21 +317,36 @@ class TradeForm extends Component {
 
   render() {
     // const { orderBuyPrice, orderSellPrice, tradeSymbol, tradeSymbolPrice } = this.state;
+
+    const { tradeSymbol, suggestions } = this.state;
+    const symbolInputProps = {
+      placeholder: 'SYMBOL',
+      value: tradeSymbol,
+      onChange: this.onChangeSymbol
+    };
     return (
       <form className="container mb-3" onSubmit={this.handleSubmit}>
         <div className="row">
           <h3 className="exchange-title">{labels.exchange}</h3>
         </div>
         <div className="row mb-3">
-          <div className="col">
+          <div className="col symbol-wrapper">
             {/* TODO: autosuggest for symbols - https://github.com/moroshko/react-autosuggest*/}
             <label htmlFor="symbol">Trade Pair</label>
-            <input
-              type="text"
-              placeholder="SYMBOL"
-              className="form-control"
-              value={this.state.tradeSymbol}
-              onChange={this.onChangeSymbol}/>
+            <Autosuggest
+              suggestions={suggestions}
+              onSuggestionsFetchRequested={this.onSuggestionsFetchRequested}
+              onSuggestionsClearRequested={this.onSuggestionsClearRequested}
+              getSuggestionValue={getSuggestionValue}
+              renderSuggestion={renderSuggestion}
+              inputProps={symbolInputProps}
+            />
+            {/*<input*/}
+              {/*type="text"*/}
+              {/*placeholder="SYMBOL"*/}
+              {/*className="form-control"*/}
+              {/*value={this.state.tradeSymbol}*/}
+              {/*onChange={this.onChangeSymbol}/>*/}
           </div>
           <div className="col">
             <h4>Current Price</h4>
