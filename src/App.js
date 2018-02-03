@@ -3,7 +3,7 @@ import React, { Component } from 'react';
 import logo from './logo.svg';
 import './App.css';
 import Autosuggest from 'react-autosuggest';
-// import { Navbar, Jumbotron, Button } from 'react-bootstrap';
+import { Button, Modal, ModalHeader, ModalBody, ModalFooter } from 'react-bootstrap';
 
 import FontAwesomeIcon from '@fortawesome/react-fontawesome'
 import { faMinusCircle } from '@fortawesome/fontawesome-free-solid'
@@ -16,6 +16,7 @@ import { faPlusCircle } from '@fortawesome/fontawesome-free-solid'
 const {ipcRenderer} = window.require('electron');
 
 // console.log(ipcRenderer.send('async', 'ping'))
+
 
 let labels = {
   'exchange': 'Binance',
@@ -30,6 +31,46 @@ let labels = {
 // let currentSide = 'buy';
 let baserPair = 'BTC';
 let symbolPairs = [];
+
+
+ipcRenderer.on('error', function (e, data) {
+
+});
+
+// TODO: lookup how to trigger modal via js
+class ModalError extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      modal: false
+    };
+
+    this.toggle = this.toggle.bind(this);
+  }
+
+  toggle() {
+    this.setState({
+      modal: !this.state.modal
+    });
+  }
+
+  render() {
+    return (
+      <div>
+        <Modal isOpen={this.state.modal} toggle={this.toggle} className={this.props.className}>
+          <ModalHeader toggle={this.toggle}>Modal title</ModalHeader>
+          <ModalBody>
+            Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+          </ModalBody>
+          <ModalFooter>
+            <Button color="primary" onClick={this.toggle}>Do Something</Button>{' '}
+            <Button color="secondary" onClick={this.toggle}>Cancel</Button>
+          </ModalFooter>
+        </Modal>
+      </div>
+    );
+  }
+}
 
 // Auto Suggest SYMBOL
 const getSuggestions = value => {
@@ -48,7 +89,7 @@ const getSuggestions = value => {
   }
 };
 
-const getSuggestionValue = suggestion => suggestion.name;
+const getSuggestionValue = suggestion => suggestion;
 
 const renderSuggestion = suggestion => (
   <div>
@@ -129,7 +170,7 @@ class TradeForm extends Component {
       orderSellPrice: 0,
       orderSellQty: 0,
       tradeSymbol: '',
-      tradeSymbolMoveClass: '',
+      tradeSymbolMoveClass: 'secondary',
       tradeSymbolPrice: '-',
       suggestions: []
     };
@@ -141,7 +182,7 @@ class TradeForm extends Component {
 
   componentDidMount() {
     ipcRenderer.on('symbol-price', function (e, data) {
-      console.log('Got symbol-price: ', data);
+      // console.log('Got symbol-price: ', data);
       if (data.symbol === this.state.tradeSymbol) {
         let displayClass = '';
         if (this.state.tradeSymbol < data.order_price) {
@@ -159,12 +200,16 @@ class TradeForm extends Component {
     }.bind(this));
   };
 
-  onChangeSymbol = (e, {newValue, method}) => {
+  onChangeSymbol = (e, {newValue}) => {
+    if (typeof(newValue) === 'undefined') {
+      return;
+    }
+
     const state = this.state;
     state.tradeSymbol = newValue.toUpperCase();
     this.setState(state);
 
-    console.log('changeSymbol: ', state.tradeSymbol);
+    // console.log('changeSymbol: ', state.tradeSymbol);
     if (state.tradeSymbol.length >= 5) {
       ipcRenderer.send('change-symbol', state.tradeSymbol);
     }
@@ -184,49 +229,88 @@ class TradeForm extends Component {
 
   // TODO: refactor from Buy / Sell functions to single set with side var
   // BUY/SELL FUNCTIONS
-  onChangeQtyBuy = (i) => (e) => {
-    // TODO: confirm value is an int/float else disallow
-    // TODO: make the parseFloat more lenient on processing -- currently prevents `.` etc...
-    // console.log('orders Qty Buy called');
-    let buyQty = parseFloat(e.target.value);
-    if (!buyQty) {
-      return 'invalid';
+  onChangeQty(e, i, stateObj) {
+    let newQty = parseFloat(e.target.value);
+    let totalQty = newQty;
+    // TODO: more tweaking to allow . at end of # entry
+    if (isNaN(newQty)) {
+      totalQty = 'invalid';
+      if (!e.target.value.length) {
+        newQty = '';
+      } else {
+        newQty = e.target.value;
+      }
     }
-    const newOrdersBuy = this.state.ordersBuy.map((orderBuy, idx) => {
+    const newOrders = stateObj.map((order, idx) => {
       // console.log('ordersQtyBuy ', idx);
       if (i !== idx) {
-        buyQty += orderBuy.qty;
-        return orderBuy;
+        if (totalQty !== 'invalid') {
+          totalQty += order.qty;
+        }
+        return order;
       }
-      return { ...orderBuy, qty: parseFloat(e.target.value) };
+      return { ...order, qty: newQty };
     });
+    return [newOrders, totalQty];
+  }
+
+  onChangeQtyBuy = (i) => (e) => {
+    let [newOrdersBuy, buyQty] = this.onChangeQty(e, i, this.state.ordersBuy);
     this.setState({ordersBuy: newOrdersBuy, orderBuyQty: buyQty });
   };
 
-  onChangePriceBuy = (i) => (e) => {
-    // console.log('orders Qty Buy called');
-    let buyPrice = parseFloat(e.target.value);
-    if (!buyPrice) {
-      return 'invalid';
+  onChangeQtySell = (i) => (e) => {
+    let [newOrdersSell, sellQty] = this.onChangeQty(e, i, this.state.ordersSell);
+    this.setState({ordersSell: newOrdersSell, orderSellQty: sellQty });
+  };
+
+  onChangePrice(e, i, stateObj) {
+    let newPrice = parseFloat(e.target.value);
+    let totalPrice = 0;
+    if (isNaN(newPrice)) {
+      if (!e.target.value.length) {
+        newPrice = '';
+      } else {
+        newPrice = e.target.value;
+      }
+      totalPrice = 'invalid';
     }
-    const newOrdersBuy = this.state.ordersBuy.map((orderBuy, idx) => {
+    const newOrders = stateObj.map((order, idx) => {
       // TODO: confirm value is an int/float else disallow
       // console.log('ordersPriceBuy ', idx);
       if (i !== idx) {
-        buyPrice += orderBuy.price;
-        return orderBuy;
+        if (totalPrice !== 'invalid') {
+          totalPrice += order.price * order.qty;
+        }
+        return order;
       }
-      return {...orderBuy, price: parseFloat(e.target.value)};
+      if (totalPrice !== 'invalid') {
+        totalPrice += newPrice * order.qty;
+      }
+      return {...order, price: newPrice};
     });
+    return [newOrders, totalPrice];
+  }
+
+  onChangePriceBuy = (i) => (e) => {
+    // console.log('orders Qty Buy called');
+    let [newOrdersBuy, buyPrice] = this.onChangePrice(e, i, this.state.ordersBuy);
     this.setState({ordersBuy: newOrdersBuy, orderBuyPrice: buyPrice});
   };
+
+  onChangePriceSell = (i) => (e) => {
+    // console.log('orders Qty Sell called');
+    let [newOrdersSell, sellPrice] = this.onChangePrice(e, i, this.state.ordersSell);
+    this.setState({ordersSell: newOrdersSell, orderSellPrice: sellPrice});
+  };
+
 
   addTradeRowBuy = () => {
     this.setState({ ordersBuy: this.state.ordersBuy.concat([{price: '', qty: ''}]) });
   };
 
   removeTradeRowBuy = (i) => () => {
-    console.log('removeTradeRowBuy');
+    // console.log('removeTradeRowBuy');
     this.setState({ ordersBuy: this.state.ordersBuy.filter((obj, idx) => i !== idx) });
   };
 
@@ -234,7 +318,7 @@ class TradeForm extends Component {
     return (
       <div className="col-6 trade-setup">
         <p>Coins in Order: <span className="qty-total">{ this.state.orderBuyQty }</span></p>
-        <p><span>{baserPair}</span> (cost): <span className="price-total">{this.state.orderBuyPrice}</span></p>
+        <p><span>{baserPair}</span> (price): <span className="price-total">{this.state.orderBuyPrice}</span></p>
         {/*<div className="row">*/}
           {/*<div className="col">*/}
             {/*<label htmlFor="percent-step">% Step</label>*/}
@@ -245,47 +329,13 @@ class TradeForm extends Component {
     );
   }
 
-  onChangeQtySell = (i) => (e) => {
-    // console.log('orders Qty Sell called');
-    let sellQty = parseFloat(e.target.value);
-    if (!sellQty) {
-      return 'invalid';
-    }
-    const newOrdersSell = this.state.ordersSell.map((orderSell, idx) => {
-      // console.log('ordersQtySell ', idx);
-      if (i !== idx) {
-        sellQty += orderSell.qty;
-        return orderSell;
-      }
-      return { ...orderSell, qty: parseFloat(e.target.value) };
-    });
-    this.setState({ordersSell: newOrdersSell, orderSellQty: sellQty});
-  };
-
-  onChangePriceSell = (i) => (e) => {
-    // console.log('orders Qty Sell called');
-    let sellPrice = parseFloat(e.target.value);
-    if (!sellPrice) {
-      return 'invalid';
-    }
-    const newOrdersSell = this.state.ordersSell.map((orderSell, idx) => {
-      // console.log('ordersPriceSell ', idx);
-      if (i !== idx) {
-        sellPrice += orderSell.price;
-        return orderSell;
-      }
-      return { ...orderSell, price: parseFloat(e.target.value) };
-    });
-    this.setState({ordersSell: newOrdersSell, orderSellPrice: sellPrice});
-  };
-
   addTradeRowSell = () => {
-    console.log('addTradeRowSell');
+    // console.log('addTradeRowSell');
     this.setState({ ordersSell: this.state.ordersSell.concat([{price: '', qty: ''}]) });
   };
 
   removeTradeRowSell = (i) => () => {
-    console.log('removeTradeRowSell');
+    // console.log('removeTradeRowSell');
     this.setState({ ordersSell: this.state.ordersSell.filter((obj, idx) => i !== idx) });
   };
 
@@ -293,7 +343,7 @@ class TradeForm extends Component {
     return (
       <div className="col-6 trade-setup">
         <p>Coins in Order: <span className="qty-total">{ this.state.orderSellQty }</span></p>
-        <p><span>{baserPair}</span> (profit): <span className="price-total">{this.state.orderSellPrice}</span></p>
+        <p><span>{baserPair}</span> (price): <span className="price-total">{this.state.orderSellPrice}</span></p>
         {/*<div className="row">*/}
           {/*<div className="col">*/}
             {/*<label htmlFor="percent-step">% Step</label>*/}
@@ -326,12 +376,8 @@ class TradeForm extends Component {
     };
     return (
       <form className="container mb-3" onSubmit={this.handleSubmit}>
-        <div className="row">
-          <h3 className="exchange-title">{labels.exchange}</h3>
-        </div>
         <div className="row mb-3">
-          <div className="col symbol-wrapper">
-            {/* TODO: autosuggest for symbols - https://github.com/moroshko/react-autosuggest*/}
+          <div className="col-sm-12 col-md-6 symbol-wrapper">
             <label htmlFor="symbol">Trade Pair</label>
             <Autosuggest
               suggestions={suggestions}
@@ -341,14 +387,8 @@ class TradeForm extends Component {
               renderSuggestion={renderSuggestion}
               inputProps={symbolInputProps}
             />
-            {/*<input*/}
-              {/*type="text"*/}
-              {/*placeholder="SYMBOL"*/}
-              {/*className="form-control"*/}
-              {/*value={this.state.tradeSymbol}*/}
-              {/*onChange={this.onChangeSymbol}/>*/}
           </div>
-          <div className="col">
+          <div className="col-sm-12 col-md-6">
             <h4>Current Price</h4>
             <div
               className={`alert alert-${this.state.tradeSymbolMoveClass} col-md-4 offset-md-4`}>
@@ -357,7 +397,7 @@ class TradeForm extends Component {
           </div>
         </div>
         <div className="form-group mb-2">
-          <h1 className="col-6">{labels.side.buy}</h1>
+          <h1 className="col-sm-12 col-md-6">{labels.side.buy}</h1>
           <div className="row">
             <div className="col-6">
               <div className="row">
@@ -407,7 +447,7 @@ class TradeForm extends Component {
             <h3 className="col-3">{labels.price}</h3>
           </div>
           <div className="row">
-            <div className="col-6">
+            <div className="col-sm-12 col-md-6">
               {this.state.ordersSell.map((orderSell, i) => (
                 <div className="row mb-3" key={`order-buy-${i}`}>
                   <div className="col-5">
@@ -443,7 +483,7 @@ class TradeForm extends Component {
           </div>
           <hr className="mb-3"/>
         </div>
-        <div className="col-6 mb-3">
+        <div className="col-sm-12 col-md-6 mb-3">
           <button type="submit" className="btn btn-primary">Submit</button>
         </div>
       </form>
@@ -463,6 +503,7 @@ class App extends Component {
           </h1>
         </header>
 
+        <h3 className="text-center">{labels.exchange}</h3>
         <TradeForm />
 
       </div>

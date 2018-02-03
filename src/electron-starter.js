@@ -49,16 +49,19 @@ ipcMain.on('submit-order', function (e, data) {
   // console.log('called submit-order')
 
   // console.log(data)
-  // TODO: verify symbol is valid
+  if (binance.symbolPairs && binance.symbolPairs.indexOf(data.tradeSymbol) == -1) {
+    console.log('Invalid symbol -- skipping');
+    e.sender.send('error', {msg: 'Invalid symbol -- Order not placed'});
+  }
   // TODO: add sanity checking against order -- could be inside API?
 
-  // TODO: loop through buy orders -- place orders
   binance.place_limit_orders(data.tradeSymbol, 'buy', data.ordersBuy);
 
-  // TODO: loop through sell orders -- update tradeData
   binance.add_triggers(data.tradeSymbol, 'sell', data.ordersSell);
 
-  binance.add_triggers(data.tradeSymbol, 'buy', data.ordersSell);
+  // binance.add_triggers(data.tradeSymbol, 'buy', data.ordersSell);
+
+  console.log('triggerData: ', binance.triggerData );
 });
 
 function get_trade_symbols_callback(e, data) {
