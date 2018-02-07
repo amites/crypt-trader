@@ -65,7 +65,7 @@ ipcMain.on('submit-order', function (e, data) {
 });
 
 function get_trade_symbols_callback(e, data) {
-  console.log('called get-trade-symbols-callback', data);
+  // console.log('called get-trade-symbols-callback', data);
   e.sender.send('get-trade-symbols-render', data);
 }
 
@@ -76,7 +76,7 @@ ipcMain.on('get-trade-symbols', function (e, empty) {
     return get_trade_symbols_callback(e, binance.symbolPairs);
   } else {
     binance.binance.bookTickers((error, ticker) => {
-      console.log('got tickers: ', ticker);
+      // console.log('got tickers: ', ticker);
       binance.symbolPairs = Object.keys(ticker);
       get_trade_symbols_callback(e, Object.keys(ticker));
     });

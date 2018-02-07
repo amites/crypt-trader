@@ -173,6 +173,9 @@ class TradeForm extends Component {
       tradeSymbolMoveClass: 'secondary',
       tradeSymbolPrice: '-',
       suggestions: []
+      // TODO: add 2nd state store for price & qty to hold view value vs code value
+      //   - allow . as first char (auto add 0)
+      //   - allow . as trailing char & 0, etc...
     };
 
     load_trade_symbols();
@@ -231,6 +234,7 @@ class TradeForm extends Component {
   // BUY/SELL FUNCTIONS
   onChangeQty(e, i, stateObj) {
     let newQty = parseFloat(e.target.value);
+    let totalPrice = 0;
     let totalQty = newQty;
     // TODO: more tweaking to allow . at end of # entry
     if (isNaN(newQty)) {
@@ -246,22 +250,28 @@ class TradeForm extends Component {
       if (i !== idx) {
         if (totalQty !== 'invalid') {
           totalQty += order.qty;
+          if (totalPrice !== 'invalid') {
+            totalPrice += order.price * order.qty;
+          }
         }
         return order;
       }
+      if (totalQty !== 'invalid' && totalPrice !== 'invalid') {
+        totalPrice += order.price * newQty;
+      }
       return { ...order, qty: newQty };
     });
-    return [newOrders, totalQty];
+    return [newOrders, totalQty, totalPrice];
   }
 
   onChangeQtyBuy = (i) => (e) => {
-    let [newOrdersBuy, buyQty] = this.onChangeQty(e, i, this.state.ordersBuy);
-    this.setState({ordersBuy: newOrdersBuy, orderBuyQty: buyQty });
+    let [newOrdersBuy, buyQty, buyPrice] = this.onChangeQty(e, i, this.state.ordersBuy);
+    this.setState({ordersBuy: newOrdersBuy, orderBuyQty: buyQty, orderBuyPrice: buyPrice });
   };
 
   onChangeQtySell = (i) => (e) => {
-    let [newOrdersSell, sellQty] = this.onChangeQty(e, i, this.state.ordersSell);
-    this.setState({ordersSell: newOrdersSell, orderSellQty: sellQty });
+    let [newOrdersSell, sellQty, sellPrice] = this.onChangeQty(e, i, this.state.ordersSell);
+    this.setState({ordersSell: newOrdersSell, orderSellQty: sellQty, orderSellPrice: sellPrice });
   };
 
   onChangePrice(e, i, stateObj) {
