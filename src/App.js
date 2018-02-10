@@ -241,7 +241,7 @@ class TradeForm extends Component {
     return (
       <div className="col-6 trade-setup">
         <p>Coins in Order: <span className="qty-total">{ this.state.orderSellQty }</span></p>
-        <p><span>{baserPair}</span> (cost): <span className="price-total">{this.state.orderSellPrice}</span></p>
+        <p><span>{baserPair}</span> (profit): <span className="price-total">{this.state.orderSellPrice}</span></p>
         {/*<div className="row">*/}
           {/*<div className="col">*/}
             {/*<label htmlFor="percent-step">% Step</label>*/}
@@ -271,6 +271,7 @@ class TradeForm extends Component {
         </div>
         <div className="row mb-3">
           <div className="col">
+            {/* TODO: autosuggest for symbols - https://github.com/moroshko/react-autosuggest*/}
             <label htmlFor="symbol">Trade Pair</label>
             <input
               type="text"
@@ -365,7 +366,7 @@ class TradeForm extends Component {
                 </div>
               ))}
               <div className="mt-6">
-                <button type="button" className="btn btn-success" onClick={this.addTradeRowSell}>
+                <button type="button" className="btn btn-outline-success" onClick={this.addTradeRowSell}>
                   <FontAwesomeIcon icon={faPlusCircle} className="fa-lg"/>
                 </button>
               </div>
