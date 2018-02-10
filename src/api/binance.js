@@ -11,7 +11,8 @@ let currentTrades = [];
 let devTicker = {};
 
 // DEV
-const DEVMODE = true;
+const DEVMODE = false;
+// const DEVMODE = true;
 
 // Setup pairs
 let basePairs = ['BTC', 'ETH', 'BNB', 'USDT'];
@@ -69,25 +70,27 @@ binance.options({
 // Common utils
 function place_limit_orders(tradeSymbol, side, limitData) {
   limitData.forEach(function (obj) {
-    place_limit_order(tradeSymbol, obj);
+    place_limit_order(tradeSymbol, side, obj);
   });
 }
 
 function add_triggers(symbol, side, newTriggerData) {
-  newTriggerData.forEach(function(e) {
+  newTriggerData.forEach(function(obj) {
     if (!(symbol in triggerData[side])) {
       triggerData[side][symbol] = [];
     }
-    triggerData[side][symbol].push({
-      'qty': e.qty,
-      'price': e.price
-    });
+    if (obj.qty && obj.price) {
+      triggerData[side][symbol].push({
+        'qty': obj.qty,
+        'price': obj.price
+      });
+    }
   });
 }
 
 
 // Binance Utils //
-function place_limit_order(tradeSymbol, obj) {
+function place_limit_order(tradeSymbol, side, obj) {
   if (!obj.qty || !obj.price) {
     console.log('invalid order placed -- skipping -- ', obj);
     return
@@ -96,7 +99,9 @@ function place_limit_order(tradeSymbol, obj) {
     console.log(`Would have placed an order for ${tradeSymbol} qty: ${obj.qty} price: ${obj.price}`);
     return
   }
-  binance[obj.type](tradeSymbol, obj.qty, obj.price, {type: 'LIMIT'}, (error, response) => {
+  console.log(`Preparing to place order: ${JSON.stringify(obj, null, 4)}`);
+  // binance[obj.type](tradeSymbol, obj.qty, obj.price, {type: 'LIMIT'}, (error, response) => {
+  binance[side](tradeSymbol, obj.qty, obj.price, {type: 'LIMIT'}, (error, response) => {
     console.log('Error on order: ', error);
 
     console.log("Limit Buy response", response);

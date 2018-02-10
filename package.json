@@ -16,6 +16,7 @@
     "mocha": "^5.0.0",
     "node-binance-api": "^0.4.5",
     "react": "^16.2.0",
+    "react-autosuggest": "^9.3.2",
     "react-bootstrap": "^0.32.0",
     "react-dom": "^16.2.0",
     "react-scripts": "1.1.0"
