@@ -28,7 +28,7 @@ let triggerData = {
   'sell': {}
 };
 
-let binanceWsMap = {
+const binanceWsMap = {
   "e": "event_type",
   "E": "event_time",
   "s": "symbol",
@@ -102,9 +102,11 @@ function place_limit_order(tradeSymbol, side, obj) {
   console.log(`Preparing to place order: ${JSON.stringify(obj, null, 4)}`);
   // binance[obj.type](tradeSymbol, obj.qty, obj.price, {type: 'LIMIT'}, (error, response) => {
   binance[side](tradeSymbol, obj.qty, obj.price, {type: 'LIMIT'}, (error, response) => {
-    console.log('Error on order: ', error);
+    if (error) {
+      console.log('Error on order: ', error);
+    }
 
-    console.log("Limit Buy response", response);
+    console.log("Limit ", side, " response", response);
     console.log("order id: " + response.orderId);
   });
 }
