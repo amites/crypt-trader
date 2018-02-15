@@ -188,9 +188,9 @@ class TradeForm extends Component {
       // console.log('Got symbol-price: ', data);
       if (data.symbol === this.state.tradeSymbol) {
         let displayClass = '';
-        if (this.state.tradeSymbol < data.order_price) {
+        if (this.state.tradeSymbolPrice < data.order_price) {
           displayClass = 'success';
-        } else if (this.state.tradeSymbol > data.order_price) {
+        } else if (this.state.tradeSymbolPrice > data.order_price) {
           displayClass = 'danger';
         } else {
           displayClass = 'secondary';
@@ -210,12 +210,15 @@ class TradeForm extends Component {
 
     const state = this.state;
     state.tradeSymbol = newValue.toUpperCase();
+    state.tradeSymbolPrice = '-';
+    state.tradeSymbolMoveClass = 'secondary';
+
     this.setState(state);
 
     // console.log('changeSymbol: ', state.tradeSymbol);
-    if (state.tradeSymbol.length >= 5) {
-      ipcRenderer.send('change-symbol', state.tradeSymbol);
-    }
+    // if (state.tradeSymbol.length >= 5) {
+    ipcRenderer.send('change-symbol', state.tradeSymbol);
+    // }
   };
 
   onSuggestionsFetchRequested = ({ value }) => {

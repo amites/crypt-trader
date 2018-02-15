@@ -64,11 +64,12 @@ binance.options({
   APISECRET: process.env.BINANCE_SECRET,
   useServerTime: true, // If you get timestamp errors, synchronize to server time at startup
   // test: (process.env.TEST === 'true') // If you want to use sandbox mode where orders are simulated
-  test: true
+  test: !DEVMODE
 });
 
 // Common utils
 function place_limit_orders(tradeSymbol, side, limitData) {
+  console.log(`place_limit_orders: ${tradeSymbol} - ${side} - ${JSON.stringify(limitData)}`);
   limitData.forEach(function (obj) {
     place_limit_order(tradeSymbol, side, obj);
   });
@@ -92,16 +93,17 @@ function add_triggers(symbol, side, newTriggerData) {
 // Binance Utils //
 function place_limit_order(tradeSymbol, side, obj) {
   if (!obj.qty || !obj.price) {
-    console.log('invalid order placed -- skipping -- ', obj);
+    console.log(`invalid order placed -- skipping -- ${JSON.stringify(obj)}`);
     return
   }
   if (DEVMODE) {
-    console.log(`Would have placed an order for ${tradeSymbol} qty: ${obj.qty} price: ${obj.price}`);
+    console.log(`Would have placed an order for ${tradeSymbol}: ${JSON.stringify(obj)}`);
     return
   }
-  console.log(`Preparing to place order: ${JSON.stringify(obj, null, 4)}`);
+  console.log(`Preparing to place order ${tradeSymbol} - ${side}: ${JSON.stringify(obj, null, 4)}`);
   // binance[obj.type](tradeSymbol, obj.qty, obj.price, {type: 'LIMIT'}, (error, response) => {
   binance[side](tradeSymbol, obj.qty, obj.price, {type: 'LIMIT'}, (error, response) => {
+    console.log(`made binance[${side}] call -- error: ${JSON.stringify(error)} -- response: ${JSON.stringify(response)}`);
     if (error) {
       console.log('Error on order: ', error);
     }
@@ -147,8 +149,10 @@ function get_all_pairs() {
       });
 
       // setup triggerData
-      if (!(s in triggerData)) {
-        triggerData[s] = [];
+      for (let side in triggerData) {
+        if (!(s in triggerData)) {
+          triggerData[side][s] = [];
+        }
       }
     });
   });

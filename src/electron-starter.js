@@ -61,9 +61,10 @@ ipcMain.on('submit-order', function (e, data) {
   // TODO: loop through sell orders -- update tradeData
   binance.add_triggers(data.tradeSymbol, 'sell', data.ordersSell);
 
-  binance.add_triggers(data.tradeSymbol, 'buy', data.ordersSell);
+  // binance.add_triggers(data.tradeSymbol, 'buy', data.ordersBuy);
 
-  console.log('triggerData: ', binance.triggerData );
+  // console.log('triggerData: ', binance.triggerData );
+  console.log(`added triggerData: buy: ${JSON.stringify(data.ordersBuy)} - sell: ${JSON.stringify(data.ordersSell)}`);
 });
 
 function get_trade_symbols_callback(e, data) {
