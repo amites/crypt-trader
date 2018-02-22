@@ -64,7 +64,8 @@ binance.options({
   APISECRET: process.env.BINANCE_SECRET,
   useServerTime: true, // If you get timestamp errors, synchronize to server time at startup
   // test: (process.env.TEST === 'true') // If you want to use sandbox mode where orders are simulated
-  test: !DEVMODE
+  // test: !DEVMODE
+  test: false
 });
 
 // Common utils
@@ -80,7 +81,7 @@ function add_triggers(symbol, side, newTriggerData) {
     if (!(symbol in triggerData[side])) {
       triggerData[side][symbol] = [];
     }
-    if (obj.qty && obj.price) {
+    if (!isNaN(parseFloat(obj.qty)) && !isNaN(parseFloat(obj.price))) {
       triggerData[side][symbol].push({
         'qty': obj.qty,
         'price': obj.price
@@ -91,6 +92,15 @@ function add_triggers(symbol, side, newTriggerData) {
 
 
 // Binance Utils //
+function get_base_symbol(tradeSymbol) {
+  for (let i=0, len=basePairs.length; i < len; i++) {
+    if (tradeSymbol.split(basePairs[i])[1] === '') {
+      return basePairs[i];
+    }
+  }
+  return '';
+}
+
 function place_limit_order(tradeSymbol, side, obj) {
   if (!obj.qty || !obj.price) {
     console.log(`invalid order placed -- skipping -- ${JSON.stringify(obj)}`);
@@ -247,12 +257,12 @@ function trade_execution_update(raw_data) {
   console.log('triggerSide: ', triggerSide);
 
   if ((tradeData.current_type === 'TRADE' || DEVMODE) && tradeData.symbol in triggerData[triggerSide] && triggerData[triggerSide][tradeData.symbol].length) {
-    if (DEVMODE) {
-      // console.log('Found triggerData for ', tradeData.symbol);
+    console.log('trade executed with data: ' + JSON.stringify(tradeData));
 
+    if (DEVMODE) {
+      console.log('DEVMODE -- modifying trade trigger data');
       tradeData.last_qty += 900;
       tradeData.trigger_qty += 900;
-      // END DEV
     }
 
     let priceExtrema, i, curTradeData;
@@ -313,8 +323,10 @@ module.exports = {
   symbolPairs: symbolPairs,
   tradePairs: tradePairs,
   binance: binance,
+  basePairs: basePairs,
   get_all_pairs: get_all_pairs,
   get_all_symbols: get_all_symbols,
+  get_base_symbol: get_base_symbol,
   map_ws_data: map_ws_data,
   balance_update: balance_update,
   trade_execution_update: trade_execution_update,

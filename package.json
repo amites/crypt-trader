@@ -3,6 +3,8 @@
   "name": "crypttrader",
   "private": true,
   "devDependencies": {
+    "babel-cli": "^6.26.0",
+    "babel-preset-es2015": "^6.24.1",
     "electron": "^1.7.11"
   },
   "dependencies": {
@@ -18,6 +20,7 @@
     "mocha": "^5.0.0",
     "node": "^9.5.0",
     "node-binance-api": "^0.4.5",
+    "nodemon": "^1.14.12",
     "popper": "^1.0.1",
     "popper.js": "^1.12.9",
     "react": "^16.2.0",
@@ -28,10 +31,11 @@
   },
   "main": "src/electron-starter.js",
   "scripts": {
-    "start": "start -p 3000",
+    "start": "foreman start -p 3000",
     "build": "react-scripts build",
     "test": "react-scripts test --env=jsdom",
     "eject": "react-scripts eject",
+    "dev": "foreman start",
     "electron": "electron .",
     "electron-start": "node src/electron-wait-react",
     "react-start": "react-scripts start",

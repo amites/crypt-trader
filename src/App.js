@@ -9,10 +9,8 @@ import FontAwesomeIcon from '@fortawesome/react-fontawesome'
 import { faMinusCircle } from '@fortawesome/fontawesome-free-solid'
 import { faPlusCircle } from '@fortawesome/fontawesome-free-solid'
 
+const binance = require('./api/binance');
 
-// const ipcRenderer = require('electron').ipcRenderer;
-// const ipcRenderer = window.require('electron').ipcRenderer;
-// const { ipcRenderer } = window.require('electron');
 const {ipcRenderer} = window.require('electron');
 
 // console.log(ipcRenderer.send('async', 'ping'))
@@ -29,8 +27,8 @@ let labels = {
 };
 
 // let currentSide = 'buy';
-let baserPair = 'BTC';
 let symbolPairs = [];
+// , symbolBase = [];
 
 
 ipcRenderer.on('error', function (e, data) {
@@ -98,15 +96,15 @@ const renderSuggestion = suggestion => (
 );
 
 // Load SYMBOLs from node
-ipcRenderer.on('get-trade-symbols-render', function (e, data) {
-  console.log('get-trade-symbols: ', data);
-  symbolPairs = data;
-
+ipcRenderer.on('get-symbols-render', function (e, data) {
+  console.log('get-symbols: ', data);
+  symbolPairs = data.trade;
+  // symbolBase = data.base;
 });
 
 function load_trade_symbols() {
   if (!symbolPairs.length) {
-    ipcRenderer.send('get-trade-symbols', []);
+    ipcRenderer.send('get-symbols', []);
   } else {
     return symbolPairs;
   }
@@ -170,6 +168,7 @@ class TradeForm extends Component {
       orderSellPrice: 0,
       orderSellQty: 0,
       tradeSymbol: '',
+      tradeSymbolBase: '',
       tradeSymbolMoveClass: 'secondary',
       tradeSymbolPrice: '-',
       suggestions: []
@@ -213,12 +212,15 @@ class TradeForm extends Component {
     state.tradeSymbolPrice = '-';
     state.tradeSymbolMoveClass = 'secondary';
 
+    state.tradeSymbolBase = binance.get_base_symbol(state.tradeSymbol);
+
     this.setState(state);
+    console.log(`set state to: ${JSON.stringify(state)}`);
 
     // console.log('changeSymbol: ', state.tradeSymbol);
-    // if (state.tradeSymbol.length >= 5) {
-    ipcRenderer.send('change-symbol', state.tradeSymbol);
-    // }
+    if (state.tradeSymbol.length >= 5) {
+      ipcRenderer.send('change-symbol', state.tradeSymbol);
+    }
   };
 
   onSuggestionsFetchRequested = ({ value }) => {
@@ -331,7 +333,7 @@ class TradeForm extends Component {
     return (
       <div className="col-6 trade-setup">
         <p>Coins in Order: <span className="qty-total">{ this.state.orderBuyQty }</span></p>
-        <p><span>{baserPair}</span> (price): <span className="price-total">{this.state.orderBuyPrice}</span></p>
+        <p><span>{this.state.tradeSymbolBase}</span> (price): <span className="price-total">{this.state.orderBuyPrice}</span></p>
         {/*<div className="row">*/}
           {/*<div className="col">*/}
             {/*<label htmlFor="percent-step">% Step</label>*/}
@@ -356,7 +358,7 @@ class TradeForm extends Component {
     return (
       <div className="col-6 trade-setup">
         <p>Coins in Order: <span className="qty-total">{ this.state.orderSellQty }</span></p>
-        <p><span>{baserPair}</span> (price): <span className="price-total">{this.state.orderSellPrice}</span></p>
+        <p><span>{this.state.tradeSymbolBase}</span> (price): <span className="price-total">{this.state.orderSellPrice}</span></p>
       </div>
     );
   }

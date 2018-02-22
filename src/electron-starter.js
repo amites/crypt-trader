@@ -68,15 +68,16 @@ ipcMain.on('submit-order', function (e, data) {
 });
 
 function get_trade_symbols_callback(e, data) {
-  // console.log('called get-trade-symbols-callback', data);
-  e.sender.send('get-trade-symbols-render', data);
+  // console.log('called get-symbols-callback', data);
+  e.sender.send('get-symbols-render', data);
 }
 
-ipcMain.on('get-trade-symbols', function (e, empty) {
-  console.log('called get-trade-symbols');
+ipcMain.on('get-symbols', function (e, empty) {
+  console.log('called get-symbols');
 
   if (binance.symbolPairs.length) {
-    return get_trade_symbols_callback(e, binance.symbolPairs);
+    return get_trade_symbols_callback(e, {trade: binance.symbolPairs,
+                                          base: binance.basePairs});
   } else {
     binance.binance.bookTickers((error, ticker) => {
       // console.log('got tickers: ', ticker);
@@ -88,7 +89,7 @@ ipcMain.on('get-trade-symbols', function (e, empty) {
 
 // Setup Binance
 binance.binance.websockets.userData(binance.balance_update, binance.trade_execution_update);
-console.error('hello world');
+// console.error('hello world');
 
 
 // Keep a global reference of the window object, if you don't, the window will
