@@ -1,3 +1,20 @@
+## Getting Started
+
+You'll need npm installed
+https://docs.npmjs.com/getting-started/installing-node
+
+then `cd` into the project directory where you cloned it
+
+then run `npm install`
+
+copy `.env.example` to `.env` and edit the file to add your binance API key & secret
+
+optionally set `TEST=false` -- orders will not be placed when `TEST=true` -- but you will see output in console
+
+then run `npm run electron .` to start the app
+
+---
+
 This project was bootstrapped with [Create React App](https://github.com/facebookincubator/create-react-app).
 
 Below you will find some information on how to perform common tasks.<br>
