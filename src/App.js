@@ -9,11 +9,11 @@ import FontAwesomeIcon from '@fortawesome/react-fontawesome'
 import { faMinusCircle } from '@fortawesome/fontawesome-free-solid'
 import { faPlusCircle } from '@fortawesome/fontawesome-free-solid'
 
-const binance = require('./api/binance');
-
+const utils = require('./api/utils');
 const {ipcRenderer} = window.require('electron');
 
 // console.log(ipcRenderer.send('async', 'ping'))
+
 
 
 let labels = {
@@ -28,7 +28,8 @@ let labels = {
 
 // let currentSide = 'buy';
 let symbolPairs = [];
-// , symbolBase = [];
+let symbolBase = [];
+let accountData = [];
 
 
 ipcRenderer.on('error', function (e, data) {
@@ -96,18 +97,29 @@ const renderSuggestion = suggestion => (
 );
 
 // Load SYMBOLs from node
-ipcRenderer.on('get-symbols-render', function (e, data) {
-  console.log('get-symbols: ', data);
-  symbolPairs = data.trade;
-  // symbolBase = data.base;
+ipcRenderer.on('node-call', function (e, data) {
+  console.log(`node-call: ${JSON.stringify(data)}`);
+  if (data.cmd === 'symbols-render') {
+    console.log('symbols-render: ', data);
+    symbolPairs = data.trade;
+    symbolBase = data.base;
+  } else if (data.cmd === 'update-account') {
+    console.log('getting account data');
+    accountData = data.data;
+  }
 });
 
 function load_trade_symbols() {
+  console.log('called load_trade_symbols');
   if (!symbolPairs.length) {
-    ipcRenderer.send('get-symbols', []);
-  } else {
-    return symbolPairs;
+    console.log('calling node to load trade symbols');
+    ipcRenderer.send('call-node', {cmd: 'get-symbols'});
   }
+}
+
+function loadAccountBalance() {
+  console.log('calling node to load account balances');
+  ipcRenderer.send('call-node', {cmd: 'get-account-balance'});
 }
 
 // class TradeConfig extends Component {
@@ -178,6 +190,7 @@ class TradeForm extends Component {
     };
 
     load_trade_symbols();
+    loadAccountBalance();
 
     this.handleSubmit = this.handleSubmit.bind(this);
   }
@@ -212,15 +225,13 @@ class TradeForm extends Component {
     state.tradeSymbolPrice = '-';
     state.tradeSymbolMoveClass = 'secondary';
 
-    state.tradeSymbolBase = binance.get_base_symbol(state.tradeSymbol);
-
-    this.setState(state);
-    console.log(`set state to: ${JSON.stringify(state)}`);
-
     // console.log('changeSymbol: ', state.tradeSymbol);
     if (state.tradeSymbol.length >= 5) {
+      state.tradeSymbolBase = utils.get_base_symbol(state.tradeSymbol, symbolBase);
       ipcRenderer.send('change-symbol', state.tradeSymbol);
     }
+    this.setState(state);
+    console.log(`set state to: ${JSON.stringify(state)}`);
   };
 
   onSuggestionsFetchRequested = ({ value }) => {
@@ -334,6 +345,7 @@ class TradeForm extends Component {
       <div className="col-6 trade-setup">
         <p>Coins in Order: <span className="qty-total">{ this.state.orderBuyQty }</span></p>
         <p><span>{this.state.tradeSymbolBase}</span> (price): <span className="price-total">{this.state.orderBuyPrice}</span></p>
+        <p><span>{this.state.tradeSymbolBase}</span> available: <span>{accountData[this.state.tradeSymbolBase].available}</span></p>
         {/*<div className="row">*/}
           {/*<div className="col">*/}
             {/*<label htmlFor="percent-step">% Step</label>*/}

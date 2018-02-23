@@ -12,6 +12,10 @@ let binanceSymbols = [];
 
 const ipcMain = require('electron').ipcMain;
 
+// Keep a global reference of the window object, if you don't, the window will
+// be closed automatically when the JavaScript object is garbage collected.
+let mainWindow = false;
+
 // Change symbol
 
 // TODO: refactor to remove direct calls to binance API and migrate into binance.js
@@ -46,10 +50,10 @@ ipcMain.on('change-symbol', function(e, tradeSymbol) {
 });
 
 ipcMain.on('submit-order', function (e, data) {
-  console.log('called submit-order')
+  console.log('called submit-order');
 
   // console.log(data)
-  if (binance.symbolPairs && binance.symbolPairs.indexOf(data.tradeSymbol) == -1) {
+  if (binance.symbolPairs && binance.symbolPairs.indexOf(data.tradeSymbol) === -1) {
     console.log('Invalid symbol -- skipping');
     e.sender.send('error', {msg: 'Invalid symbol -- Order not placed'});
   }
@@ -68,33 +72,64 @@ ipcMain.on('submit-order', function (e, data) {
 });
 
 function get_trade_symbols_callback(e, data) {
-  // console.log('called get-symbols-callback', data);
-  e.sender.send('get-symbols-render', data);
+  console.log(`called get-symbols-callback: ${JSON.stringify(data)}`);
+  e.sender.send('node-call', data);
 }
 
-ipcMain.on('get-symbols', function (e, empty) {
+ipcMain.on('call-node', function (e, data) {
   console.log('called get-symbols');
+  console.log(JSON.stringify(data));
 
-  if (binance.symbolPairs.length) {
-    return get_trade_symbols_callback(e, {trade: binance.symbolPairs,
-                                          base: binance.basePairs});
-  } else {
-    binance.binance.bookTickers((error, ticker) => {
-      // console.log('got tickers: ', ticker);
-      binance.symbolPairs = Object.keys(ticker);
-      get_trade_symbols_callback(e, Object.keys(ticker));
+  if (data.cmd === 'get-symbols') {
+    let apiData = {
+        cmd: 'symbols-render',
+        base: binance.basePairs
+    };
+    if (binance.symbolPairs.length) {
+      apiData.trade = binance.symbolPairs;
+      return get_trade_symbols_callback(e, apiData);
+    } else {
+      binance.binance.bookTickers((error, ticker) => {
+        console.log('got tickers: ', JSON.stringify(Object.keys(ticker)));
+        for (let i=0, len=ticker.length; i<len; i++) {
+          binance.symbolPairs.push(ticker[i]['symbol']);
+        }
+        apiData.trade = binance.symbolPairs;
+        get_trade_symbols_callback(e, apiData);
+      });
+    }
+  }
+  else if (data.cmd === 'get-account-balance') {
+    binance.binance.balance((error, balances) => {
+      console.log('got balance updates: ', JSON.stringify(balances));
+      sendBalanceUpdate(balances);
     });
   }
 });
 
 // Setup Binance
-binance.binance.websockets.userData(binance.balance_update, binance.trade_execution_update);
-// console.error('hello world');
+function balanceUpdateCallback(data) {
+  console.log("Balance Updates\n");
+  let userData = {};
+  for (let obj of data.B ) {
+    userData[obj.a] = obj.f;
+  }
+  sendBalanceUpdate(userData);
+}
 
+function sendBalanceUpdate(data) {
+  if (mainWindow) {
+    console.log('sending balance data to mainWindow');
+    let apiData = {};
 
-// Keep a global reference of the window object, if you don't, the window will
-// be closed automatically when the JavaScript object is garbage collected.
-let mainWindow;
+    mainWindow.webContents.send('node-call', {
+      cmd: 'update-account',
+      data: data
+    });
+  } else {
+    console.log('mainWindow not available to set balance');
+  }
+}
 
 function createWindow () {
   // Create the browser window.
@@ -122,7 +157,10 @@ function createWindow () {
     // in an array if your app supports multi windows, this is the time
     // when you should delete the corresponding element.
     mainWindow = null
-  })
+  });
+
+  // setup server environment
+  binance.binance.websockets.userData(balanceUpdateCallback, binance.trade_execution_update);
 }
 
 // This method will be called when Electron has finished

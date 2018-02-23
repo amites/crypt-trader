@@ -1,9 +1,21 @@
-require('dotenv').load();
+require('dotenv').config();
 
 const assert = require('assert');
 const clone = require('clone');
 
 const binance = require('node-binance-api');
+// console.log(`env: ${JSON.stringify(process.env)}`);
+// console.log(`env binance API: ${process.env.BINANCE_API}`);
+binance.options({
+  APIKEY: process.env.BINANCE_API,
+  APISECRET: process.env.BINANCE_SECRET,
+  useServerTime: true, // If you get timestamp errors, synchronize to server time at startup
+  // test: (process.env.TEST === 'true') // If you want to use sandbox mode where orders are simulated
+  // test: !DEVMODE
+  test: false
+});
+
+
 let tradesOpen = {};
 let tradeObj = [];
 let currentTrades = [];
@@ -59,14 +71,8 @@ const binanceWsMap = {
 
 
 
-binance.options({
-  APIKEY: process.env.BINANCE_API,
-  APISECRET: process.env.BINANCE_SECRET,
-  useServerTime: true, // If you get timestamp errors, synchronize to server time at startup
-  // test: (process.env.TEST === 'true') // If you want to use sandbox mode where orders are simulated
-  // test: !DEVMODE
-  test: false
-});
+// console.log(`env: ${JSON.stringify(process.env)}`);
+// console.log(`binance env: API: ${process.env.BINANCE_API}`);
 
 // Common utils
 function place_limit_orders(tradeSymbol, side, limitData) {
@@ -92,15 +98,6 @@ function add_triggers(symbol, side, newTriggerData) {
 
 
 // Binance Utils //
-function get_base_symbol(tradeSymbol) {
-  for (let i=0, len=basePairs.length; i < len; i++) {
-    if (tradeSymbol.split(basePairs[i])[1] === '') {
-      return basePairs[i];
-    }
-  }
-  return '';
-}
-
 function place_limit_order(tradeSymbol, side, obj) {
   if (!obj.qty || !obj.price) {
     console.log(`invalid order placed -- skipping -- ${JSON.stringify(obj)}`);
@@ -326,7 +323,6 @@ module.exports = {
   basePairs: basePairs,
   get_all_pairs: get_all_pairs,
   get_all_symbols: get_all_symbols,
-  get_base_symbol: get_base_symbol,
   map_ws_data: map_ws_data,
   balance_update: balance_update,
   trade_execution_update: trade_execution_update,
