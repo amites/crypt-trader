@@ -21,7 +21,7 @@ let mainWindow = false;
 // TODO: refactor to remove direct calls to binance API and migrate into binance.js
 function change_symbol_callback(e, tradeSymbol) {
   if (binanceSymbols.indexOf(tradeSymbol) >= 0) {
-    binance.binance.websockets.trades([tradeSymbol], (trades) => {
+    binance.binance.websockets.trades(tradeSymbol, (trades) => {
       let data = binance.map_ws_data(trades);
 
       // console.log(`${tradeSymbol} current data ${data}`)

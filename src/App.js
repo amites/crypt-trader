@@ -29,7 +29,7 @@ let labels = {
 // let currentSide = 'buy';
 let symbolPairs = [];
 let symbolBase = [];
-let accountData = [];
+let accountData = {};
 
 
 ipcRenderer.on('error', function (e, data) {
@@ -120,6 +120,14 @@ function load_trade_symbols() {
 function loadAccountBalance() {
   console.log('calling node to load account balances');
   ipcRenderer.send('call-node', {cmd: 'get-account-balance'});
+}
+
+function displayBalance(symbol) {
+  if (Object.keys(accountData).indexOf(symbol) > -1) {
+    return accountData[symbol].available;
+  }
+  console.log(`value for ${symbol} not found in ${JSON.stringify(accountData)}`);
+  return '-';
 }
 
 // class TradeConfig extends Component {
@@ -345,7 +353,7 @@ class TradeForm extends Component {
       <div className="col-6 trade-setup">
         <p>Coins in Order: <span className="qty-total">{ this.state.orderBuyQty }</span></p>
         <p><span>{this.state.tradeSymbolBase}</span> (price): <span className="price-total">{this.state.orderBuyPrice}</span></p>
-        <p><span>{this.state.tradeSymbolBase}</span> available: <span>{accountData[this.state.tradeSymbolBase].available}</span></p>
+        <p><span>{this.state.tradeSymbolBase}</span> available: <span>{displayBalance(this.state.tradeSymbolBase)}</span></p>
         {/*<div className="row">*/}
           {/*<div className="col">*/}
             {/*<label htmlFor="percent-step">% Step</label>*/}

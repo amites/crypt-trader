@@ -10,9 +10,9 @@ binance.options({
   APIKEY: process.env.BINANCE_API,
   APISECRET: process.env.BINANCE_SECRET,
   useServerTime: true, // If you get timestamp errors, synchronize to server time at startup
-  // test: (process.env.TEST === 'true') // If you want to use sandbox mode where orders are simulated
+  test: (process.env.TEST === 'true') // If you want to use sandbox mode where orders are simulated
   // test: !DEVMODE
-  test: false
+  // test: false
 });
 
 
@@ -128,6 +128,38 @@ function map_ws_data(raw_data) {
     }
   }
   return data;
+}
+
+function terminate_ws(channel) {
+  let endpoints = binance.websockets.subscriptions();
+  binance.options({
+    APIKEY: process.env.BINANCE_API,
+    APISECRET: process.env.BINANCE_SECRET,
+    useServerTime: true, // If you get timestamp errors, synchronize to server time at startup
+    test: (process.env.TEST === 'true'), // If you want to use sandbox mode where orders are simulated
+    reconnect: false
+  });
+
+  for ( let endpoint in endpoints ) {
+    if (channel === endpoint) {
+      console.log(`matched ${endpoint} as ${channel} -- terminating`);
+      binance.websockets.terminate(endpoint);
+      break;
+    } else {
+      console.log(`endpoint ${endpoint} is not ${channel} -- leaving open`);
+    }
+  }
+
+  binance.options({
+    APIKEY: process.env.BINANCE_API,
+    APISECRET: process.env.BINANCE_SECRET,
+    useServerTime: true, // If you get timestamp errors, synchronize to server time at startup
+    test: (process.env.TEST === 'true') // If you want to use sandbox mode where orders are simulated
+  });
+}
+
+function terminate_ws_trade(symbol) {
+  terminate_ws(symbol.toLowerCase()+'@aggTrade');
 }
 
 function get_all_symbols() {
