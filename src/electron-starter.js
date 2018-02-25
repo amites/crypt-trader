@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const electron = require('electron');
 // Module to control application life.
 const app = electron.app;
@@ -21,11 +23,15 @@ let mainWindow = false;
 // TODO: refactor to remove direct calls to binance API and migrate into binance.js
 function change_symbol_callback(e, tradeSymbol) {
   if (binanceSymbols.indexOf(tradeSymbol) >= 0) {
+    binance.binance.prices(tradeSymbol, (error, ticker) => {
+      e.sender.send('symbol-price', {symbol: tradeSymbol, order_price: ticker[tradeSymbol]});
+    });
+
     binance.binance.websockets.trades(tradeSymbol, (trades) => {
       let data = binance.map_ws_data(trades);
 
       // console.log(`${tradeSymbol} current data ${data}`)
-      e.sender.send('symbol-price', data)
+      e.sender.send('symbol-price', data);
     });
   } else {
     console.log('trade symbol not found: ', tradeSymbol);
@@ -149,7 +155,9 @@ function createWindow () {
   mainWindow.loadURL(startUrl);
 
   // Open the DevTools.
-  mainWindow.webContents.openDevTools();
+  if (process.env.DEBUG) {
+    mainWindow.webContents.openDevTools();
+  }
 
   // Emitted when the window is closed.
   mainWindow.on('closed', function () {

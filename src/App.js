@@ -257,17 +257,22 @@ class TradeForm extends Component {
   // TODO: refactor from Buy / Sell functions to single set with side var
   // BUY/SELL FUNCTIONS
   onChangeQty(e, i, stateObj) {
-    let newQty = parseFloat(e.target.value);
+    let newQty = e.target.value;
     let totalPrice = 0;
     let totalQty = newQty;
+    if (e.target.validity.valid) {
+      newQty = parseFloat(newQty);
+    } else {
+
+    // }
     // TODO: more tweaking to allow . at end of # entry
-    if (isNaN(newQty)) {
+    // if (isNaN(newQty)) {
       totalQty = 'invalid';
-      if (!e.target.value.length) {
-        newQty = '';
-      } else {
-        newQty = e.target.value;
-      }
+      // if (!e.target.value.length) {
+      //   newQty = '';
+      // } else {
+      //   newQty = e.target.value;
+      // }
     }
     const newOrders = stateObj.map((order, idx) => {
       // console.log('ordersQtyBuy ', idx);
@@ -299,14 +304,18 @@ class TradeForm extends Component {
   };
 
   onChangePrice(e, i, stateObj) {
-    let newPrice = parseFloat(e.target.value);
+    let newPrice = e.target.value;
+    // let newPrice = parseFloat(e.target.value);
     let totalPrice = 0;
-    if (isNaN(newPrice)) {
-      if (!e.target.value.length) {
-        newPrice = '';
-      } else {
-        newPrice = e.target.value;
-      }
+    // if (isNaN(newPrice)) {
+    //   if (!e.target.value.length) {
+    //     newPrice = '';
+    //   } else {
+    //     newPrice = e.target.value;
+    //   }
+    if (e.target.validity.valid) {
+      newPrice = parseFloat(newPrice);
+    } else {
       totalPrice = 'invalid';
     }
     const newOrders = stateObj.map((order, idx) => {
@@ -437,18 +446,20 @@ class TradeForm extends Component {
                 <div className="row mb-3" key={`order-buy-${i}`}>
                   <div className="col-5">
                     <input
-                      type="text"
+                      type="number"
                       className="qty"
                       placeholder={`${labels.qty} #${i+1}`}
                       value={orderBuy.qty}
+                      step="0.00000001"
                       onChange={this.onChangeQtyBuy(i)}
                     />
                   </div>
                   <div className="col-5">
                     <input
-                      type="text"
+                      type="number"
                       placeholder={`${labels.price} #${i+1}`}
                       value={orderBuy.price}
+                      step="0.00000001"
                       onChange={this.onChangePriceBuy(i)} />
                   </div>
                   <div className="col-2">
@@ -481,18 +492,20 @@ class TradeForm extends Component {
                 <div className="row mb-3" key={`order-buy-${i}`}>
                   <div className="col-5">
                     <input
-                      type="text"
+                      type="number"
                       className="qty"
                       placeholder={`${labels.qty} #${i+1}`}
                       value={orderSell.qty}
+                      step="0.00000001"
                       onChange={this.onChangeQtySell(i)}
                     />
                   </div>
                   <div className="col-5">
                     <input
-                      type="text"
+                      type="number"
                       placeholder={`${labels.price} #${i+1}`}
                       value={orderSell.price}
+                      step="0.00000001"
                       onChange={this.onChangePriceSell(i)} />
                   </div>
                   <div className="col-2">
